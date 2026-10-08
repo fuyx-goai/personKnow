@@ -33,6 +33,8 @@ type applicationRuntime struct {
 	cfg    config.Config
 }
 
+// buildRuntime 创建日志、数据库连接和业务依赖，并在监听端口前完成 migration。
+// 任一步失败都会关闭已创建的资源，避免启动失败后残留连接。
 func buildRuntime(ctx context.Context, cfg config.Config) (*applicationRuntime, error) {
 	logger, err := logging.NewFile(cfg.Log)
 	if err != nil {
@@ -56,6 +58,8 @@ func buildRuntime(ctx context.Context, cfg config.Config) (*applicationRuntime, 
 	return &applicationRuntime{server: server, worker: worker, pool: pool, cfg: cfg}, nil
 }
 
+// composeApplication 是全栈应用的装配入口：复用底层模型与向量库，
+// 再把账号、知识库、文档、索引、问答和用量模块连接到同一套路由。
 func composeApplication(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) (http.Handler, *indexing.Worker, error) {
 	chatModel, err := legacyrepo.NewChatModel(ctx, cfg.LLM)
 	if err != nil {
@@ -116,6 +120,7 @@ func composeApplication(ctx context.Context, cfg config.Config, pool *pgxpool.Po
 	return engine, worker, nil
 }
 
+// Run 同时运行 HTTP 服务和索引 Worker；任一组件失败或收到退出信号时统一收口。
 func (runtime *applicationRuntime) Run(ctx context.Context, shutdownTimeout time.Duration) error {
 	errorsChannel := make(chan error, 2)
 	workerContext, cancelWorker := context.WithCancel(ctx)
@@ -141,6 +146,7 @@ func (runtime *applicationRuntime) Run(ctx context.Context, shutdownTimeout time
 	}
 }
 
+// Close 释放进程持有的数据库连接池，可安全重复用于启动失败和正常退出路径。
 func (runtime *applicationRuntime) Close() {
 	if runtime.pool != nil {
 		runtime.pool.Close()

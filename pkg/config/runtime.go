@@ -16,11 +16,13 @@ const (
 	defaultLogRetainDays     = 30
 )
 
+// DatabaseConfig 定义 PostgreSQL 连接串和连接池上限。
 type DatabaseConfig struct {
 	URL      string `yaml:"url"`
 	MaxConns int32  `yaml:"max_conns"`
 }
 
+// AuthConfig 集中保存账号认证参数；敏感字段优先由环境变量覆盖，避免写入仓库。
 type AuthConfig struct {
 	JWTSecret      string        `yaml:"jwt_secret"`
 	IdentitySecret string        `yaml:"identity_secret"`
@@ -30,23 +32,28 @@ type AuthConfig struct {
 	WeChatSecret   string        `yaml:"wechat_app_secret"`
 }
 
+// StorageConfig 定义原文件落盘目录和单文件大小上限。
 type StorageConfig struct {
 	DataDir      string `yaml:"data_dir"`
 	MaxFileBytes int64  `yaml:"max_file_bytes"`
 }
 
+// WorkerConfig 控制异步索引任务的并发、租约和轮询周期。
 type WorkerConfig struct {
 	Concurrency int           `yaml:"concurrency"`
 	Lease       time.Duration `yaml:"-"`
 	Poll        time.Duration `yaml:"-"`
 }
 
+// LogConfig 定义结构化日志的目录、滚动阈值和保留周期。
 type LogConfig struct {
 	Dir        string `yaml:"dir"`
 	MaxSizeMB  int    `yaml:"max_size_mb"`
 	RetainDays int    `yaml:"retain_days"`
 }
 
+// applyRuntimeDefaults 先读取环境变量，再补齐安全的运行默认值。
+// 这样本地可使用 YAML，而生产密钥无需进入配置文件或版本库。
 func (c *Config) applyRuntimeDefaults() {
 	c.Database.URL = envOr("DATABASE_URL", c.Database.URL)
 	if c.Database.MaxConns <= 0 {
@@ -83,6 +90,7 @@ func (c *Config) applyRuntimeDefaults() {
 	c.Milvus.Password = envOr("MILVUS_PASSWORD", c.Milvus.Password)
 }
 
+// Validate 在创建外部连接前检查启动所需的关键配置，尽早返回可读错误。
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.Database.URL) == "" {
 		return fmt.Errorf("DATABASE_URL 不能为空")
@@ -118,6 +126,7 @@ func durationEnv(name string, fallback time.Duration) time.Duration {
 	return parsed
 }
 
+// intEnv 对无效或非正整数使用回退值，防止错误配置导致零并发等异常状态。
 func intEnv(name string, fallback int) int {
 	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
 	if err != nil || value <= 0 {
