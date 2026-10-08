@@ -1,0 +1,12 @@
+<view class="header">
+  <view style="height: {{statusBarHeight}}px"></view>
+  <view class="header__bar" style="height: {{navHeight}}px; padding-right: {{rightInset}}px">
+    <view class="header__brand">
+      <view class="header__dot {{online ? 'is-online' : ''}}"></view>
+      <view>
+        <text class="header__title">{{title}}</text>
+        <text wx:if="{{subtitle}}" class="header__subtitle">{{subtitle}}</text>
+      </view>
+    </view>
+  </view>
+</view>

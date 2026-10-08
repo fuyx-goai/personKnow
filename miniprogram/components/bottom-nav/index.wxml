@@ -1,0 +1,7 @@
+<view class="nav">
+  <button wx:for="{{items}}" wx:key="key" class="nav__item {{current === item.key ? 'is-active' : ''}}"
+    data-key="{{item.key}}" bindtap="navigate">
+    <text class="nav__icon">{{item.icon}}</text>
+    <text class="nav__label">{{item.label}}</text>
+  </button>
+</view>

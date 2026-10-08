@@ -1,0 +1,48 @@
+<view class="page-shell chat-page">
+  <app-header title="智深专属知识库" subtitle="基于现有资料进行可信问答" online="{{online}}" />
+
+  <view class="chat-toolbar">
+    <button class="history-button" bindtap="unavailable">↻ <text>{{messages.length - 1}}</text></button>
+    <picker class="library-picker" range="{{libraries}}" value="{{libraryIndex}}" bindchange="onLibraryChange">
+      <view class="library-picker__value">◈ {{libraries[libraryIndex]}}⌄</view>
+    </picker>
+    <button class="add-button" bindtap="unavailable">＋</button>
+  </view>
+
+  <scroll-view class="messages" scroll-y scroll-with-animation scroll-into-view="{{scrollTarget}}">
+    <view wx:if="{{messages.length === 1}}" class="suggestions">
+      <text>你可以这样问</text>
+      <button wx:for="{{suggestions}}" wx:key="*this" data-value="{{item}}" bindtap="useSuggestion">✦ {{item}}</button>
+    </view>
+
+    <view wx:for="{{messages}}" wx:key="id" id="message-{{index}}" class="message {{item.role}}">
+      <view wx:if="{{item.role === 'user'}}" class="user-avatar">我</view>
+      <view wx:else class="ai-avatar">⌘</view>
+      <view class="message__body">
+        <text class="message__text" selectable>{{item.content || (item.streaming ? '正在检索知识库…' : '')}}</text>
+        <view wx:if="{{item.streaming}}" class="typing"><view></view><view></view><view></view></view>
+        <view wx:if="{{item.references.length}}" class="references">
+          <text class="references__title">原资料溯源依据（{{item.references.length}} 处匹配）</text>
+          <view wx:for="{{item.references}}" wx:key="source" wx:for-item="reference" class="reference">
+            <view><text>{{reference.source}}</text><text class="reference__score">{{reference.scoreLabel}} 相似</text></view>
+            <text class="reference__snippet">{{reference.snippet}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{error}}" class="chat-error">{{error}}</view>
+    <view class="messages__spacer"></view>
+  </scroll-view>
+
+  <view class="composer">
+    <textarea class="composer__input" value="{{question}}" auto-height maxlength="1000"
+      placeholder="询问知识库中的技术架构、读书卡片或操作规范…" bindinput="onInput" />
+    <view class="composer__bottom">
+      <text>♢ 目标库：{{selectedLibrary}}</text>
+      <button wx:if="{{busy}}" class="send-button stop" bindtap="stop">■</button>
+      <button wx:else class="send-button" disabled="{{!question}}" bindtap="send">➤</button>
+    </view>
+  </view>
+
+  <bottom-nav current="chat" />
+</view>

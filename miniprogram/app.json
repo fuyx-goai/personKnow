@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "pages/chat/index",
+    "pages/libraries/index",
+    "pages/sources/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#F5F7F8",
+    "backgroundTextStyle": "dark"
+  },
+  "usingComponents": {
+    "app-header": "/components/app-header/index",
+    "bottom-nav": "/components/bottom-nav/index",
+    "state-view": "/components/state-view/index"
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

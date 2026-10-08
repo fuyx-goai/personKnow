@@ -1,0 +1,7 @@
+<view class="state">
+  <view wx:if="{{type === 'loading'}}" class="state__spinner"></view>
+  <view wx:else class="state__icon {{type}}">{{type === 'error' ? '!' : '○'}}</view>
+  <text class="state__title">{{title}}</text>
+  <text wx:if="{{message}}" class="state__message">{{message}}</text>
+  <button wx:if="{{actionText}}" class="state__action" bindtap="action">{{actionText}}</button>
+</view>

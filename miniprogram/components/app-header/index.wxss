@@ -1,0 +1,7 @@
+.header { position: relative; z-index: 20; border-bottom: 1rpx solid #e8ecef; background: rgba(255, 255, 255, 0.96); }
+.header__bar { display: flex; align-items: center; padding-left: 28rpx; }
+.header__brand { display: flex; min-width: 0; align-items: center; gap: 14rpx; }
+.header__dot { flex: 0 0 auto; width: 12rpx; height: 12rpx; border-radius: 50%; background: #b9c0c8; }
+.header__dot.is-online { background: #2ba58f; box-shadow: 0 0 0 7rpx rgba(43, 165, 143, 0.1); }
+.header__title { display: block; overflow: hidden; color: #10192d; font-size: 27rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.header__subtitle { display: block; overflow: hidden; max-width: 410rpx; margin-top: 2rpx; color: #96a0ac; font-size: 19rpx; text-overflow: ellipsis; white-space: nowrap; }

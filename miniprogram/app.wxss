@@ -1,0 +1,79 @@
+page {
+  --bg: #f5f7f8;
+  --surface: #ffffff;
+  --surface-soft: #f0f4f4;
+  --primary: #2ba58f;
+  --primary-dark: #168877;
+  --primary-soft: #e7f7f3;
+  --ink: #10192d;
+  --text: #263247;
+  --muted: #8993a2;
+  --line: #e6eaee;
+  --danger: #e04f62;
+  min-height: 100%;
+  color: var(--text);
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+}
+
+view, text, button, input, textarea, scroll-view { box-sizing: border-box; }
+button::after { border: 0; }
+
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
+}
+
+.page-content { padding: 28rpx 28rpx 40rpx; }
+
+.card {
+  border: 1rpx solid var(--line);
+  border-radius: 28rpx;
+  background: var(--surface);
+  box-shadow: 0 8rpx 30rpx rgba(15, 31, 45, 0.055);
+}
+
+.section-title { color: var(--ink); font-size: 34rpx; font-weight: 700; }
+.section-note { margin-top: 6rpx; color: var(--muted); font-size: 23rpx; line-height: 1.55; }
+
+.primary-button, .ghost-button, .danger-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 78rpx;
+  padding: 0 28rpx;
+  border-radius: 22rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.primary-button { color: #fff; background: var(--primary); box-shadow: 0 10rpx 22rpx rgba(43, 165, 143, 0.2); }
+.primary-button[disabled] { color: #aeb6bf; background: #e8ecef; box-shadow: none; }
+.ghost-button { color: var(--text); background: #fff; border: 1rpx solid var(--line); }
+.danger-button { color: var(--danger); background: #fff4f5; }
+
+.field {
+  width: 100%;
+  height: 84rpx;
+  padding: 0 26rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 22rpx;
+  color: var(--ink);
+  background: #fff;
+  font-size: 26rpx;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  font-size: 21rpx;
+}
+
+.skeleton { border-radius: 18rpx; background: linear-gradient(90deg, #edf0f2, #f7f8f9, #edf0f2); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }

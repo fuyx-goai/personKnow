@@ -1,0 +1,8 @@
+.state { display: flex; min-height: 360rpx; padding: 44rpx; flex-direction: column; align-items: center; justify-content: center; color: #8d98a5; text-align: center; }
+.state__icon { display: grid; width: 78rpx; height: 78rpx; place-items: center; border-radius: 26rpx; color: #2ba58f; background: #e8f7f3; font-size: 40rpx; }
+.state__icon.error { color: #e04f62; background: #fff0f2; }
+.state__spinner { width: 52rpx; height: 52rpx; border: 6rpx solid #dcefea; border-top-color: #2ba58f; border-radius: 50%; animation: spin .8s linear infinite; }
+.state__title { margin-top: 24rpx; color: #283348; font-size: 28rpx; font-weight: 650; }
+.state__message { max-width: 520rpx; margin-top: 10rpx; font-size: 23rpx; line-height: 1.6; }
+.state__action { height: 66rpx; margin-top: 24rpx; padding: 0 26rpx; border-radius: 20rpx; color: #fff; background: #2ba58f; font-size: 23rpx; line-height: 66rpx; }
+@keyframes spin { to { transform: rotate(360deg); } }

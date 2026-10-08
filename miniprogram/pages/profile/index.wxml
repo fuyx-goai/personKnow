@@ -1,0 +1,34 @@
+<view class="page-shell profile-page">
+  <app-header title="智深专属知识库" subtitle="个人空间与服务状态" online="{{online}}" />
+  <view class="page-content">
+    <view class="sheet card">
+      <view class="sheet__title"><text>个人空间设置与知识库状态</text><text class="pill">MVP</text></view>
+
+      <view class="identity">
+        <view class="avatar">Z</view>
+        <view><text>知识库使用者</text><text>微信小程序本地配置</text><text class="identity__status">{{online ? '● 专属实例在线' : '● 服务未连接'}}</text></view>
+      </view>
+
+      <view class="tabs"><button class="is-active">容量与用量</button><button bindtap="unavailable">RAG 检索微调</button><button bindtap="unavailable">账号与安全</button></view>
+
+      <state-view wx:if="{{loading}}" type="loading" title="正在同步服务状态" />
+      <view wx:else>
+        <view wx:if="{{error}}" class="error-card">{{error}}</view>
+        <view class="usage">
+          <view><text>▤ 已建立知识片段</text><text class="usage__value">{{chunkCount}}</text></view>
+          <view class="progress"><view style="width: {{progressWidth}}"></view></view>
+        </view>
+        <view class="usage"><view><text>⌘ 对话模型</text><text class="usage__value usage__model">{{config.chatModel || '未读取'}}</text></view><text class="usage__sub">向量接口：{{config.embedAPI || '—'}}</text></view>
+        <view class="summary"><view><text class="summary__value">{{sourceCount}}</text><text>资料来源</text></view><view><text class="summary__value">{{chunkCount}}</text><text>知识片段</text></view></view>
+
+        <view class="endpoint">
+          <text>知识库服务地址</text>
+          <input class="field" value="{{apiBaseUrl}}" placeholder="https://api.example.com" bindinput="onUrlInput" />
+          <button class="primary-button" bindtap="saveUrl">保存并重新连接</button>
+          <text class="endpoint__hint">真机环境必须使用已加入微信后台白名单的 HTTPS 域名。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <bottom-nav current="profile" />
+</view>

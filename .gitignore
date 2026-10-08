@@ -1,0 +1,24 @@
+# 编译产物
+/knowledge-base
+/bin/
+*.exe
+
+# 运行期落盘的内存向量库数据
+knowledge.json
+
+# 私密配置（含 API Key 等，自行用 CONFIG_FILE 指向）
+configs/config.local.yaml
+
+# IDE
+.idea/
+.vscode/
+
+# Go
+*.test
+*.out
+
+# 前端依赖（只忽略 node_modules）
+# 注意：前端构建产物 internal/gateway/web/dist/ 是"故意提交"的，
+# 这样 go build / go run 完全不需要 Node 环境。
+web/node_modules/
+web/.vite/
