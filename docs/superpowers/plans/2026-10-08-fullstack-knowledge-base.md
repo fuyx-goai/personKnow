@@ -401,23 +401,23 @@ git commit -m "feat(indexing): 实现版本化异步索引"
 - Create: `internal/chat/service_test.go`
 - Modify: `internal/knowledge/repo/chat_pipeline.go`
 
-- [ ] **Step 1: 写范围与中断测试**
+- [x] **Step 1: 写范围与中断测试**
 
 覆盖单库、全域、公开库、他人私有库排除、Token 超额前置拒绝和客户端取消后 `interrupted` 状态。
 
-- [ ] **Step 2: 实现会话与范围计算**
+- [x] **Step 2: 实现会话与范围计算**
 
 全域范围只包含自己的 active 库和他人的 public active 库；每次问答重新计算，避免可见性变化后继续访问。
 
-- [ ] **Step 3: 实现 SSE 协议**
+- [x] **Step 3: 实现 SSE 协议**
 
 固定事件类型 `delta/reference/usage/error/done`；所有错误事件包含稳定 code 和 request_id；完成时保存消息、引用快照和实际 Token。
 
-- [ ] **Step 4: 实现历史查询与删除**
+- [x] **Step 4: 实现历史查询与删除**
 
 历史记录按 `updated_at,id` 游标分页；删除仅允许会话所有者并写审计。
 
-- [ ] **Step 5: 验证并提交**
+- [x] **Step 5: 验证并提交**
 
 Run: `go test ./internal/chat ./internal/knowledge/repo`
 
