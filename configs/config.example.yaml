@@ -1,0 +1,35 @@
+http_addr: ":8080"
+vector_store: mem
+
+database:
+  max_conns: 10
+
+storage:
+  data_dir: data
+  max_file_bytes: 52428800
+
+worker:
+  concurrency: 2
+
+log:
+  dir: logs
+  max_size_mb: 100
+  retain_days: 30
+
+llm:
+  base_url: "https://ark.cn-beijing.volces.com/api/v3"
+  chat_model: "doubao-seed-2-1-lite-260915"
+  embed_model: "doubao-embedding-vision-251215"
+  embed_api: "ark_multimodal"
+
+milvus:
+  address: "127.0.0.1:19530"
+  username: "root"
+  db_name: "default"
+  collection: "eino_knowledge"
+  dim: 2048
+  metric: "COSINE"
+
+# 敏感配置只通过环境变量提供：
+# DATABASE_URL、JWT_SECRET、IDENTITY_SECRET、WECHAT_APP_ID、WECHAT_APP_SECRET、
+# LLM_API_KEY、MILVUS_PASSWORD。

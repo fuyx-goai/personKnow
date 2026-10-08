@@ -31,4 +31,6 @@ type VectorStore interface {
 	List(ctx context.Context, limit int) ([]*schema.Document, error)
 	// DeleteBySource 按来源文件名删除片段，返回删除条数；source 为空表示清空整库
 	DeleteBySource(ctx context.Context, source string) (int, error)
+	// DeleteByIDs 按稳定片段 ID 删除，供内容版本切换后清理旧向量
+	DeleteByIDs(ctx context.Context, ids []string) (int, error)
 }

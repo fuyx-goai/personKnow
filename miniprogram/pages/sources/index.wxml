@@ -1,46 +1,23 @@
 <view class="page-shell">
   <app-header title="智深专属知识库" subtitle="原资料全生命周期管理" online="{{online}}" />
   <view class="page-content">
-    <view class="hero">
-      <view><view><text class="section-title">原资料文件操作台</text><text class="hero__count">{{groups.length}} 个文件</text></view><text class="section-note">查看、摄入、检索与删除知识来源</text></view>
-      <button class="primary-button hero__button" bindtap="openIngest">⇧ 上传/导入</button>
-    </view>
-
-    <input class="field search" value="{{query}}" placeholder="搜索文档名或内容摘要..." bindinput="onSearch" />
-    <picker range="{{sourceOptions}}" value="{{sourceIndex}}" bindchange="onSourceChange">
-      <view class="field picker">▧ {{sourceOptions[sourceIndex]}} <text>⌄</text></view>
-    </picker>
+    <view class="hero"><view><view><text class="section-title">原资料文件操作台</text><text class="hero__count">{{documents.length}} 个文件</text></view><text class="section-note">支持原文件查看、在线内容修改、重命名、重新分块与删除</text></view><button class="primary-button hero__button" bindtap="chooseUpload">⇧ 上传/导入</button></view>
+    <view class="filters"><input class="field search" value="{{query}}" placeholder="搜索文档名、标签或内容摘要..." bindinput="onSearch" /><picker range="{{libraryOptions}}" range-key="name" value="{{libraryIndex}}" bindchange="onLibraryChange"><view class="field picker">📁 {{libraryOptions[libraryIndex].name}}⌄</view></picker></view>
 
     <state-view wx:if="{{loading}}" type="loading" title="正在读取原资料" />
     <state-view wx:elif="{{error}}" type="error" title="读取失败" message="{{error}}" action-text="重新加载" bind:action="refresh" />
-    <state-view wx:elif="{{!visibleGroups.length}}" title="没有匹配的资料" message="可以导入服务端已有的文件或目录。" action-text="上传/导入" bind:action="openIngest" />
+    <state-view wx:elif="{{!visibleDocuments.length}}" title="暂无匹配资料" message="上传 PDF、DOCX、PPTX、Markdown、TXT、HTML 或 CSV。" />
 
-    <view wx:else class="sources">
-      <view wx:for="{{visibleGroups}}" wx:key="source" class="card source-card">
-        <view class="source-card__head">
-          <view class="file-icon">{{item.fileType}}</view>
-          <view class="source-card__title"><text>{{item.displayName}}</text><text>{{item.sizeLabel}} · 已切块就绪</text></view>
-          <view class="source-card__tools">
-            <button data-source="{{item.source}}" bindtap="unavailable">↻</button>
-            <button data-source="{{item.source}}" bindtap="unavailable">⌁</button>
-            <button data-source="{{item.source}}" bindtap="remove">♲</button>
-          </view>
-        </view>
-        <text class="source-card__preview">{{item.preview}}</text>
-        <view class="source-card__meta"><text>◎ {{item.count}} 切块</text><text>◇ {{item.sizeLabel}}</text></view>
+    <view wx:else class="documents">
+      <view wx:for="{{visibleDocuments}}" wx:key="id" class="card document">
+        <view class="document__head"><view class="file-icon">{{item.formatLabel}}</view><view><text>{{item.display_name}}</text><view><text>{{item.sizeLabel}}</text><text class="status {{item.status}}">{{item.statusLabel}}</text><text wx:if="{{item.readOnly}}" class="readonly">公开只读</text></view></view></view>
+        <text class="document__summary">{{item.summary || '索引完成后将在这里生成内容摘要。'}}</text>
+        <view class="document__library"><text>所属知识库：</text><text>{{item.libraryName}}</text><text wx:for="{{item.tags}}" wx:key="*this">#{{item}}</text></view>
+        <view wx:if="{{!item.readOnly}}" class="document__actions"><button data-id="{{item.id}}" disabled="{{workingID === item.id}}" bindtap="reindex">重新切块向量化</button><button data-id="{{item.id}}" disabled="{{workingID === item.id}}" bindtap="openEditor">在线编辑/重命名</button><button class="danger" data-id="{{item.id}}" data-name="{{item.display_name}}" bindtap="remove">删除</button></view>
+        <view class="document__meta"><text>{{item.chunk_count}} 切块</text><text>·</text><text>{{item.tokenLabel}} Tokens</text><text>更新于 {{item.updatedLabel}}</text></view>
       </view>
     </view>
   </view>
-
-  <view wx:if="{{ingestOpen}}" class="modal" bindtap="closeIngest">
-    <view class="modal__sheet" catchtap="stopTap">
-      <view class="modal__head"><text>导入服务端资料</text><button bindtap="closeIngest">×</button></view>
-      <text class="modal__note">输入 Go 网关进程能够访问的文件或目录路径。</text>
-      <input class="field" value="{{ingestPath}}" placeholder="./docs" bindinput="onPathInput" />
-      <view class="modal__tips"><text>• 支持单个文件或整个目录</text><text>• 再次导入同来源会覆盖原有片段</text><text>• 真机不能直接上传本地文件</text></view>
-      <button class="primary-button" disabled="{{ingesting || !ingestPath}}" loading="{{ingesting}}" bindtap="ingest">{{ingesting ? '正在入库…' : '开始摄入'}}</button>
-    </view>
-  </view>
-
+  <document-editor open="{{editorOpen}}" saving="{{editorSaving}}" document="{{editingDocument}}" content="{{editingContent}}" bind:close="closeEditor" bind:submit="saveEditor" />
   <bottom-nav current="sources" />
 </view>

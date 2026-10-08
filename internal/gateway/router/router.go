@@ -11,23 +11,46 @@ package router
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"knowledge-base/internal/gateway/handler"
 	"knowledge-base/internal/gateway/web"
+	"knowledge-base/internal/platform/httpx"
 )
 
 // New 组装 Gin 引擎：挂上中间件、前端页面，再注册业务路由
-func New(h *handler.Handler) *gin.Engine {
+func New(h *handler.Handler, full ...V1Handlers) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery()) // 访问日志 + panic 兜底，避免一个请求崩掉整个服务
+	r.Use(httpx.RequestID(), cors(), httpx.AccessLog(slog.Default()), gin.Recovery())
 
 	registerWeb(r)
-	registerAPI(r, h)
+	if h != nil {
+		registerAPI(r, h)
+	}
+	if len(full) > 0 {
+		registerV1(r, full[0])
+	}
 	return r
+}
+
+func cors() gin.HandlerFunc {
+	return func(context *gin.Context) {
+		if origin := context.GetHeader("Origin"); origin != "" {
+			context.Header("Access-Control-Allow-Origin", origin)
+			context.Header("Vary", "Origin")
+			context.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, X-Login-Ticket-Secret, X-Device-Label, Idempotency-Key")
+			context.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		}
+		if context.Request.Method == http.MethodOptions {
+			context.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		context.Next()
+	}
 }
 
 // registerWeb 挂载前端页面

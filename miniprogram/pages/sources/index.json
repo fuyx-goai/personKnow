@@ -1,1 +1,1 @@
-{ "navigationStyle": "custom" }
+{"navigationStyle":"custom","usingComponents":{"document-editor":"/components/document-editor/index"}}

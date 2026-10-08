@@ -55,3 +55,28 @@ test('done 事件会立即将解析器标记为完成', () => {
 
   assert.equal(parser.done(), true)
 })
+
+test('SSE 解析器支持后端五类命名事件', () => {
+  const received = []
+  const parser = createSSEParser({
+    onDelta: (value) => received.push(['delta', value]),
+    onReference: (value) => received.push(['reference', value.source_name]),
+    onUsage: (value) => received.push(['usage', value.output_tokens]),
+    onError: (value) => received.push(['error', value.code]),
+    onDone: (value) => received.push(['done', value.message_id]),
+  })
+
+  parser.push('event: delta\ndata: {"delta":"回答"}\n\n')
+  parser.push('event: reference\ndata: {"source_name":"rag.md"}\n\n')
+  parser.push('event: usage\ndata: {"output_tokens":18}\n\n')
+  parser.push('event: error\ndata: {"code":"CHAT_FAILED","message":"失败"}\n\n')
+  parser.push('event: done\ndata: {"message_id":"m1"}\n\n')
+
+  assert.deepEqual(received, [
+    ['delta', '回答'],
+    ['reference', 'rag.md'],
+    ['usage', 18],
+    ['error', 'CHAT_FAILED'],
+    ['done', 'm1'],
+  ])
+})

@@ -9,6 +9,7 @@ erDiagram
     users ||--o{ auth_sessions : "登录"
     users ||--o{ web_login_tickets : "确认"
     users ||--o{ knowledge_bases : "拥有"
+    knowledge_bases ||--|| library_retrieval_settings : "配置检索"
     knowledge_bases ||--o{ documents : "包含"
     documents ||--o{ document_contents : "产生版本"
     documents ||--o{ index_jobs : "建立索引"
@@ -42,6 +43,13 @@ erDiagram
         varchar name
         varchar visibility
         varchar status
+    }
+    library_retrieval_settings {
+        uuid library_id PK
+        int chunk_size
+        int chunk_overlap
+        int top_k
+        numeric similarity_threshold
     }
     documents {
         uuid id PK
@@ -289,7 +297,24 @@ erDiagram
 
 **索引设计**：`idx_documents_library_status(library_id, status, updated_at DESC)`；`gin_documents_tags` 支持标签筛选；名称和摘要搜索使用 `pg_trgm` GIN 索引。
 
-### 3.9 文档内容版本表（document_contents）
+### 3.9 知识库检索设置表（library_retrieval_settings）
+
+**业务说明**：保存“RAG 检索微调”页签中的知识库级切块与召回参数。
+
+| 字段名 | 类型 | 主键/索引 | 必填 | 默认值 | 说明 |
+|--------|------|---------|------|--------|------|
+| library_id | uuid | PK, FK | 是 | - | 关联 `knowledge_bases.id` |
+| chunk_size | integer | - | 是 | 800 | 200–2000 |
+| chunk_overlap | integer | - | 是 | 100 | 0–500 且小于切块大小 |
+| top_k | smallint | - | 是 | 5 | 1–20 |
+| similarity_threshold | numeric(5,4) | - | 是 | 0.3000 | 0–1 |
+| updated_by | uuid | FK | 是 | - | 最近修改用户 |
+| created_at | timestamptz | - | 是 | now() | 创建时间 |
+| updated_at | timestamptz | - | 是 | now() | 更新时间 |
+
+**约束**：使用 `CHECK` 验证全部范围与 `chunk_overlap < chunk_size`；设置随知识库删除而删除。
+
+### 3.10 文档内容版本表（document_contents）
 
 **业务说明**：保存解析或在线编辑后的不可变纯文本版本及结构映射。
 
@@ -309,7 +334,7 @@ erDiagram
 
 **索引设计**：`uk_document_content_version(document_id, version)`；`idx_content_document_created(document_id, created_at DESC)`。
 
-### 3.10 索引任务表（index_jobs）
+### 3.11 索引任务表（index_jobs）
 
 **业务说明**：保存上传、重新索引和删除清理任务，支持租约、恢复和重试。
 
@@ -336,7 +361,7 @@ erDiagram
 
 **索引设计**：`idx_jobs_claim(status, next_run_at, created_at)` 支持任务领取；部分唯一索引限制每个文档最多一个 `queued/running` 活跃任务。
 
-### 3.11 问答会话表（chat_sessions）
+### 3.12 问答会话表（chat_sessions）
 
 **业务说明**：保存原型历史记录和检索范围。
 
@@ -353,7 +378,7 @@ erDiagram
 
 **约束**：`single_library` 必须有 `library_id`；`global` 必须为空。
 
-### 3.12 问答消息表（chat_messages）
+### 3.13 问答消息表（chat_messages）
 
 **业务说明**：保存用户问题、模型回答、生成状态和 Token 统计。
 
@@ -374,7 +399,7 @@ erDiagram
 
 **索引设计**：`idx_messages_session_created(session_id, created_at, id)` 支持稳定时间序列查询。
 
-### 3.13 消息引用表（message_references）
+### 3.14 消息引用表（message_references）
 
 **业务说明**：保存回答生成时使用的来源依据，不依赖文档后续改名或重新索引。
 
@@ -392,7 +417,7 @@ erDiagram
 | rank | smallint | - | 是 | - | 引用排序 |
 | created_at | timestamptz | - | 是 | now() | 创建时间 |
 
-### 3.14 用量流水表（usage_records）
+### 3.15 用量流水表（usage_records）
 
 **业务说明**：保存不可变资源用量流水，是统计校准的事实依据。
 
@@ -411,7 +436,7 @@ erDiagram
 
 **索引设计**：`idx_usage_user_month(user_id, occurred_at)`；`idx_usage_resource(resource_type, resource_id)` 支持幂等核对。
 
-### 3.15 月度用量表（monthly_usage）
+### 3.16 月度用量表（monthly_usage）
 
 **业务说明**：保存容量与当月 Token 聚合，用于原型展示和事务配额校验。
 
@@ -428,7 +453,7 @@ erDiagram
 
 **约束**：所有计数字段不得小于 0；主键为 `(user_id, month_start)`。
 
-### 3.16 审计日志表（audit_logs）
+### 3.17 审计日志表（audit_logs）
 
 **业务说明**：保存关键业务动作，供用户追踪登录、知识库和文件操作。
 
@@ -448,7 +473,7 @@ erDiagram
 
 **索引设计**：`idx_audit_actor_time(actor_user_id, occurred_at DESC)`；按月删除超过 180 天记录。
 
-### 3.17 幂等记录表（idempotency_records）
+### 3.18 幂等记录表（idempotency_records）
 
 **业务说明**：防止上传、编辑、重新索引和扫码确认因重试产生重复副作用。
 

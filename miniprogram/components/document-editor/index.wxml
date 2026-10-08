@@ -1,0 +1,9 @@
+<view wx:if="{{open}}" class="mask" bindtap="close">
+  <view class="panel" catchtap="stopTap">
+    <view class="panel__head"><view><text>在线编辑原资料</text><text>保存后自动生成新内容版本并重新索引</text></view><button bindtap="close">×</button></view>
+    <view class="form-row"><text>显示名称</text><input value="{{displayName}}" maxlength="255" bindinput="onName" /></view>
+    <view class="form-row"><text>标签</text><input value="{{tags}}" placeholder="RAG，VectorDB，重排" bindinput="onTags" /></view>
+    <view class="form-row"><text>可编辑文本</text><textarea class="content" value="{{text}}" maxlength="-1" bindinput="onText" /></view>
+    <button class="submit" disabled="{{!displayName || !text || saving}}" bindtap="submit">{{saving ? '正在保存并重建索引…' : '保存修改'}}</button>
+  </view>
+</view>

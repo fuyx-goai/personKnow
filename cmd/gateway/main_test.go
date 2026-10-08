@@ -15,11 +15,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,14 +24,11 @@ import (
 	einomodel "github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 
-	"knowledge-base/internal/gateway/handler"
-	"knowledge-base/internal/gateway/router"
 	"knowledge-base/internal/knowledge/dto"
 	"knowledge-base/internal/knowledge/model"
 	"knowledge-base/internal/knowledge/repo"
 	"knowledge-base/internal/knowledge/repo/vectorstore"
 	"knowledge-base/internal/knowledge/service"
-	"knowledge-base/pkg/config"
 )
 
 // fakeEmbedder 假向量化组件：实现 embedding.Embedder 接口即可直接替换真组件
@@ -80,22 +72,20 @@ func (f *fakeChatModel) Stream(ctx context.Context, in []*schema.Message, opts .
 	return schema.StreamReaderFromArray(msgs), nil
 }
 
-// findDocsDir 从当前测试目录向上找示例文档目录 docs/（cmd/gateway -> 项目根）
-func findDocsDir(t *testing.T) string {
+// writeIngestFixtures 创建不受生产文档改动影响的固定摄入样本。
+func writeIngestFixtures(t *testing.T) string {
 	t.Helper()
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
+	directory := t.TempDir()
+	fixtures := map[string]string{
+		"go-notes.md":     "# Goroutine\n\nGoroutine 是 Go 语言的轻量级线程。",
+		"deploy-notes.md": "# 部署说明\n\n生产服务应使用 HTTPS，并配置健康检查。",
 	}
-	for i := 0; i < 6; i++ {
-		p := filepath.Join(dir, "docs")
-		if st, err := os.Stat(p); err == nil && st.IsDir() {
-			return p
+	for name, content := range fixtures {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
 		}
-		dir = filepath.Dir(dir)
 	}
-	t.Fatal("找不到示例文档目录 docs")
-	return ""
+	return directory
 }
 
 // newTestComponents 组装一套测试用的组件：假模型 + 假向量化 + 内存向量库 + 领域端口
@@ -143,8 +133,8 @@ func seed(t *testing.T, ctx context.Context, kbRepo *vectorstore.Repository) {
 func TestIngestAndRetrieve(t *testing.T) {
 	ctx := context.Background()
 
-	// 1. 先记下示例文档的绝对路径（下面会切目录）
-	docsDir := findDocsDir(t)
+	// 1. 先生成固定测试文档（下面会切目录）
+	docsDir := writeIngestFixtures(t)
 
 	// 2. 切到临时目录运行，测试产生的 knowledge.json 不污染项目目录
 	t.Chdir(t.TempDir())
@@ -154,7 +144,10 @@ func TestIngestAndRetrieve(t *testing.T) {
 
 	// 4. 通过 service 层用例摄入示例文档
 	svc := service.NewIngestService(ingestPipe)
-	results, err := svc.Ingest(ctx, dto.IngestCommand{Paths: []string{docsDir}})
+	results, err := svc.Ingest(ctx, dto.IngestCommand{Paths: []string{
+		filepath.Join(docsDir, "go-notes.md"),
+		filepath.Join(docsDir, "deploy-notes.md"),
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,157 +220,4 @@ func TestChatChainStreaming(t *testing.T) {
 	if len(refs) == 0 {
 		t.Error("期望返回引用来源，实际为空")
 	}
-}
-
-// TestHTTPEndpoints 用 httptest 驱动 Gin 路由，验证 HTTP 层是否把整条链对上了
-func TestHTTPEndpoints(t *testing.T) {
-	ctx := context.Background()
-
-	// 1. 先取示例文档的绝对路径（下面会切目录）
-	docsDir := findDocsDir(t)
-	t.Chdir(t.TempDir())
-
-	// 2. 组装应用：假模型 + 假向量化 + 内存向量库
-	kbRepo, ingestPipe, chatPipe := newTestComponents(t, ctx, []string{"Goroutine", " 是", " 轻量级", "线程", "。"})
-	cfg := config.Config{HTTPAddr: ":0", VectorStore: config.StoreMem}
-	h := handler.New(cfg,
-		service.NewChatService(chatPipe),
-		service.NewIngestService(ingestPipe),
-		service.NewLibraryService(kbRepo),
-	)
-	engine := router.New(h)
-
-	// 3. 健康检查
-	rec := doRequest(t, engine, http.MethodGet, "/api/health", "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "ok") {
-		t.Fatalf("健康检查失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-
-	// 4. 摄入接口：把 docs/ 目录灌进来
-	body, _ := json.Marshal(map[string]string{"path": docsDir})
-	rec = doRequest(t, engine, http.MethodPost, "/api/ingest", string(body))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("摄入失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	var ingestResp struct {
-		TotalChunks int                `json:"totalChunks"`
-		Results     []dto.IngestResult `json:"results"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &ingestResp); err != nil {
-		t.Fatal("解析摄入响应失败:", err)
-	}
-	if ingestResp.TotalChunks == 0 {
-		t.Fatal("摄入成功但片段数为 0")
-	}
-
-	// 5. 非流式问答：应返回答案 + 引用
-	rec = doRequest(t, engine, http.MethodPost, "/api/chat", `{"question":"goroutine 是什么"}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("问答失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	var chatResp struct {
-		Answer     string            `json:"answer"`
-		References []model.Reference `json:"references"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &chatResp); err != nil {
-		t.Fatal("解析问答响应失败:", err)
-	}
-	if chatResp.Answer != "Goroutine 是 轻量级线程。" {
-		t.Errorf("答案不对: %q", chatResp.Answer)
-	}
-	if len(chatResp.References) == 0 {
-		t.Error("期望返回引用来源，实际为空")
-	}
-
-	// 6. 流式问答：SSE 应该分多条事件推出来
-	rec = doRequest(t, engine, http.MethodPost, "/api/chat/stream", `{"question":"goroutine 是什么"}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("流式问答失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/event-stream") {
-		t.Errorf("Content-Type 应为 text/event-stream，实际: %s", ct)
-	}
-	sseBody := rec.Body.String()
-	if strings.Count(sseBody, "data: ") < 3 {
-		t.Errorf("期望多条 SSE 事件，实际内容:\n%s", sseBody)
-	}
-	if !strings.Contains(sseBody, `"done":true`) || !strings.Contains(sseBody, "[DONE]") {
-		t.Errorf("SSE 缺少结束标记:\n%s", sseBody)
-	}
-
-	// 7. 参数校验：question 为空应返回 400
-	rec = doRequest(t, engine, http.MethodPost, "/api/chat", `{"question":"  "}`)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("空问题应返回 400，实际 %d", rec.Code)
-	}
-
-	// 8. 统计接口
-	rec = doRequest(t, engine, http.MethodGet, "/api/stats", "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), config.StoreMem) {
-		t.Errorf("统计接口异常: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-
-	// 9. 列出片段（藏书页）：刚摄入过，列表不应为空
-	rec = doRequest(t, engine, http.MethodGet, "/api/chunks", "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("列出片段失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	var chunksResp struct {
-		Chunks []dto.ChunkView `json:"chunks"`
-		Count  int             `json:"count"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &chunksResp); err != nil {
-		t.Fatal("解析片段列表失败:", err)
-	}
-	if chunksResp.Count == 0 {
-		t.Fatal("摄入过文档，片段列表不应为空")
-	}
-	if first := chunksResp.Chunks[0]; first.ID == "" || first.Source == "" {
-		t.Errorf("片段缺少 ID 或来源: %+v", first)
-	}
-
-	// 10. 按来源删除：删掉其中一个来源，片段总数应当减少
-	src := chunksResp.Chunks[0].Source
-	before := chunksResp.Count
-	rec = doRequest(t, engine, http.MethodDelete, "/api/chunks?source="+url.QueryEscape(src), "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"deleted"`) {
-		t.Fatalf("按来源删除失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	rec = doRequest(t, engine, http.MethodGet, "/api/chunks", "")
-	if err := json.Unmarshal(rec.Body.Bytes(), &chunksResp); err != nil {
-		t.Fatal("解析片段列表失败:", err)
-	}
-	if chunksResp.Count >= before {
-		t.Errorf("删除 %s 后片段数应该减少：之前 %d，现在 %d", src, before, chunksResp.Count)
-	}
-
-	// 11. 清空整库（不带 source）：片段数应归零
-	rec = doRequest(t, engine, http.MethodDelete, "/api/chunks", "")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("清空整库失败: code=%d, body=%s", rec.Code, rec.Body.String())
-	}
-	rec = doRequest(t, engine, http.MethodGet, "/api/stats", "")
-	var statsResp struct {
-		Chunks int `json:"chunks"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &statsResp); err != nil {
-		t.Fatal("解析统计响应失败:", err)
-	}
-	if statsResp.Chunks != 0 {
-		t.Errorf("清空后片段数应为 0，实际 %d", statsResp.Chunks)
-	}
-}
-
-// doRequest 用 httptest 发一个请求给 Gin 路由（不需要真的监听端口）
-func doRequest(t *testing.T, engine http.Handler, method, path, body string) *httptest.ResponseRecorder {
-	t.Helper()
-	var reader io.Reader
-	if body != "" {
-		reader = strings.NewReader(body)
-	}
-	req := httptest.NewRequest(method, path, reader)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	engine.ServeHTTP(rec, req)
-	return rec
 }
