@@ -22,11 +22,12 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret    string        `yaml:"jwt_secret"`
-	AccessTTL    time.Duration `yaml:"-"`
-	RefreshTTL   time.Duration `yaml:"-"`
-	WeChatAppID  string        `yaml:"wechat_app_id"`
-	WeChatSecret string        `yaml:"wechat_app_secret"`
+	JWTSecret      string        `yaml:"jwt_secret"`
+	IdentitySecret string        `yaml:"identity_secret"`
+	AccessTTL      time.Duration `yaml:"-"`
+	RefreshTTL     time.Duration `yaml:"-"`
+	WeChatAppID    string        `yaml:"wechat_app_id"`
+	WeChatSecret   string        `yaml:"wechat_app_secret"`
 }
 
 type StorageConfig struct {
@@ -53,6 +54,7 @@ func (c *Config) applyRuntimeDefaults() {
 	}
 
 	c.Auth.JWTSecret = envOr("JWT_SECRET", c.Auth.JWTSecret)
+	c.Auth.IdentitySecret = envOr("IDENTITY_SECRET", c.Auth.IdentitySecret)
 	c.Auth.WeChatAppID = envOr("WECHAT_APP_ID", c.Auth.WeChatAppID)
 	c.Auth.WeChatSecret = envOr("WECHAT_APP_SECRET", c.Auth.WeChatSecret)
 	c.Auth.AccessTTL = durationEnv("ACCESS_TOKEN_TTL", 15*time.Minute)
@@ -87,6 +89,9 @@ func (c Config) Validate() error {
 	}
 	if len(c.Auth.JWTSecret) < 32 {
 		return fmt.Errorf("JWT_SECRET 至少需要 32 个字符")
+	}
+	if len(c.Auth.IdentitySecret) < 32 {
+		return fmt.Errorf("IDENTITY_SECRET 至少需要 32 个字符")
 	}
 	if c.Auth.WeChatAppID == "" || c.Auth.WeChatSecret == "" {
 		return fmt.Errorf("微信 AppID 和密钥不能为空")

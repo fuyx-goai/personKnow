@@ -167,7 +167,7 @@ git commit -m "feat(db): 建立PostgreSQL数据基座"
 - Create: `internal/account/handler.go`
 - Create: `internal/platform/httpx/auth.go`
 
-- [ ] **Step 1: 写账号状态机和票据消费失败测试**
+- [x] **Step 1: 写账号状态机和票据消费失败测试**
 
 ```go
 func TestConfirmTicketOnlyOnce(t *testing.T) {
@@ -178,25 +178,25 @@ func TestConfirmTicketOnlyOnce(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 实现微信客户端与令牌服务**
+- [x] **Step 2: 实现微信客户端与令牌服务**
 
 `WeChatClient.ExchangeCode` 调用官方 `jscode2session`；JWT claims 只包含 `sub/session_id/exp/iat`；刷新令牌使用 32 字节随机值并只保存 SHA-256 哈希。
 
-- [ ] **Step 3: 实现账号 repository 和 service**
+- [x] **Step 3: 实现账号 repository 和 service**
 
 事务内完成微信身份 upsert、默认套餐分配、会话创建、票据条件确认和票据消费。OpenID 使用 HMAC 查找值与 AES-GCM 密文存储。
 
-- [ ] **Step 4: 实现 handler 与鉴权中间件**
+- [x] **Step 4: 实现 handler 与鉴权中间件**
 
 覆盖 `/auth/wechat/login`、`/auth/refresh`、`/auth/logout`、`/auth/web/tickets`、票据查询与确认、`/me` 和会话撤销接口。
 
-- [ ] **Step 5: 运行测试**
+- [x] **Step 5: 运行测试**
 
 Run: `go test ./internal/account ./internal/platform/httpx`
 
 Expected: PASS，包含过期票据、重复消费、撤销会话和非法 JWT。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/account internal/platform/httpx

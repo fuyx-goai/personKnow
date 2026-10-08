@@ -18,6 +18,7 @@ func TestLoadUsesEnvironmentSecrets(t *testing.T) {
 	t.Setenv("JWT_SECRET", "01234567890123456789012345678901")
 	t.Setenv("WECHAT_APP_ID", "wx-test")
 	t.Setenv("WECHAT_APP_SECRET", "wechat-secret")
+	t.Setenv("IDENTITY_SECRET", "abcdefghijklmnopqrstuvwxyz123456")
 	t.Setenv("DATA_DIR", filepath.Join(t.TempDir(), "data"))
 
 	cfg, err := Load()
@@ -29,6 +30,9 @@ func TestLoadUsesEnvironmentSecrets(t *testing.T) {
 	}
 	if cfg.Auth.JWTSecret == "" || cfg.Auth.WeChatAppID != "wx-test" {
 		t.Fatal("authentication secrets were not loaded from environment")
+	}
+	if cfg.Auth.IdentitySecret != "abcdefghijklmnopqrstuvwxyz123456" {
+		t.Fatal("identity secret was not loaded from environment")
 	}
 	if cfg.Auth.AccessTTL != 15*time.Minute || cfg.Auth.RefreshTTL != 30*24*time.Hour {
 		t.Fatalf("unexpected token TTLs: %s %s", cfg.Auth.AccessTTL, cfg.Auth.RefreshTTL)
