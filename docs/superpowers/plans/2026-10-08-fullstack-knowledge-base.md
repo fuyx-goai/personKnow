@@ -108,7 +108,7 @@ git commit -m "feat(infra): 增加安全配置与结构化日志"
 - Create: `internal/platform/postgres/migrate_test.go`
 - Create: `cmd/migrate/main.go`
 
-- [ ] **Step 1: 写 migration 失败测试**
+- [x] **Step 1: 写 migration 失败测试**
 
 ```go
 func TestMigrationsContainRequiredTables(t *testing.T) {
@@ -119,17 +119,17 @@ func TestMigrationsContainRequiredTables(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `go test ./internal/platform/postgres`
 
 Expected: FAIL，migration 尚不存在。
 
-- [ ] **Step 3: 实现完整首版 migration**
+- [x] **Step 3: 实现完整首版 migration**
 
 SQL 必须创建设计文档中的 18 张业务表、`wechat_identities`、`schema_migrations`、CHECK 约束、外键、联合索引和部分唯一索引；启用 `pg_trgm` 扩展。
 
-- [ ] **Step 4: 实现 pgxpool、事务接口和显式 migration 命令**
+- [x] **Step 4: 实现 pgxpool、事务接口和显式 migration 命令**
 
 ```go
 type DBTX interface {
@@ -141,13 +141,13 @@ type DBTX interface {
 func WithinTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error
 ```
 
-- [ ] **Step 5: 验证**
+- [x] **Step 5: 验证**
 
 Run: `go test ./internal/platform/postgres ./cmd/migrate`
 
 Expected: PASS；若 `TEST_DATABASE_URL` 存在，额外实际执行 up/status 并回滚临时 schema。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add cmd/migrate internal/platform/postgres go.mod go.sum
