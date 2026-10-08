@@ -30,7 +30,7 @@ func registerAPI(r *gin.Engine, h *handler.Handler) {
 	api.GET("/health", h.Health)
 	api.GET("/config", h.Config)
 	api.GET("/stats", h.Stats)
-	api.GET("/chunks", h.Chunks)      // 列出片段（藏书页）
+	api.GET("/chunks", h.Chunks)          // 列出片段（藏书页）
 	api.DELETE("/chunks", h.DeleteChunks) // 删除片段 / 清空整库
 	api.POST("/ingest", h.Ingest)
 	api.POST("/chat", h.Chat)

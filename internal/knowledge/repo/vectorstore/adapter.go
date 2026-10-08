@@ -184,32 +184,43 @@ func (r *Repository) Save(ctx context.Context, chunks []model.Chunk) ([]string, 
 
 // Search 语义检索，并把 Eino 文档转回领域片段
 func (r *Repository) Search(ctx context.Context, query string, topK int) ([]model.Chunk, error) {
-	docs, err := r.store.Retrieve(ctx, query, retriever.WithTopK(topK))
+	count, err := r.store.Count(ctx)
+	if err != nil || count == 0 {
+		return nil, err
+	}
+	docs, err := r.store.Retrieve(ctx, query, retriever.WithTopK(count))
 	if err != nil {
 		return nil, err
 	}
-	out := make([]model.Chunk, 0, len(docs))
+	out := make([]model.Chunk, 0, min(topK, len(docs)))
 	for _, d := range docs {
+		if !isLegacyDocument(d) {
+			continue
+		}
 		out = append(out, model.Chunk{
 			ID:       d.ID,
 			Content:  d.Content,
 			Metadata: d.MetaData,
 			Score:    d.Score(),
 		})
+		if topK > 0 && len(out) == topK {
+			break
+		}
 	}
 	return out, nil
 }
 
 // Count 直接透传给向量库
 func (r *Repository) Count(ctx context.Context) (int, error) {
-	return r.store.Count(ctx)
+	documents, err := r.legacyDocuments(ctx)
+	return len(documents), err
 }
 
 // List 列出片段：Eino 文档 -> 领域片段
 //
 // 浏览场景不需要向量，这里刻意不填 Chunk.Vector，省内存也省带宽。
 func (r *Repository) List(ctx context.Context, limit int) ([]model.Chunk, error) {
-	docs, err := r.store.List(ctx, limit)
+	docs, err := r.legacyDocuments(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +231,47 @@ func (r *Repository) List(ctx context.Context, limit int) ([]model.Chunk, error)
 			Content:  d.Content,
 			Metadata: d.MetaData,
 		})
+		if limit > 0 && len(out) == limit {
+			break
+		}
 	}
 	return out, nil
 }
 
 // DeleteBySource 按来源删除（source 为空即清空整库），直接透传给向量库
 func (r *Repository) DeleteBySource(ctx context.Context, source string) (int, error) {
-	return r.store.DeleteBySource(ctx, source)
+	documents, err := r.legacyDocuments(ctx)
+	if err != nil {
+		return 0, err
+	}
+	ids := make([]string, 0, len(documents))
+	for _, document := range documents {
+		if source == "" || sourceOf(document.MetaData) == source {
+			ids = append(ids, document.ID)
+		}
+	}
+	return r.store.DeleteByIDs(ctx, ids)
+}
+
+func (r *Repository) legacyDocuments(ctx context.Context) ([]*schema.Document, error) {
+	count, err := r.store.Count(ctx)
+	if err != nil || count == 0 {
+		return nil, err
+	}
+	documents, err := r.store.List(ctx, count)
+	if err != nil {
+		return nil, err
+	}
+	legacy := make([]*schema.Document, 0, len(documents))
+	for _, document := range documents {
+		if isLegacyDocument(document) {
+			legacy = append(legacy, document)
+		}
+	}
+	return legacy, nil
+}
+
+func isLegacyDocument(document *schema.Document) bool {
+	value, exists := document.MetaData[platformvector.MetaLibraryID]
+	return !exists || value == nil || value == ""
 }

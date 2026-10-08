@@ -436,19 +436,19 @@ git commit -m "feat(chat): 支持多库问答与引用历史"
 - Create: `internal/gateway/router/v1_test.go`
 - Create: `internal/gateway/handler/compat.go`
 
-- [ ] **Step 1: 写 API 路由与错误契约测试**
+- [x] **Step 1: 写 API 路由与错误契约测试**
 
 验证公开路由、受保护路由、request_id 响应头、统一错误体、CORS 和 SSE 头。
 
-- [ ] **Step 2: 组合所有模块**
+- [x] **Step 2: 组合所有模块**
 
 启动顺序：配置 → logger → PostgreSQL → schema 版本检查 → 模型与向量库 → services → Worker → HTTP；关闭时先停止接收请求，再取消 Worker，最后关闭连接池。
 
-- [ ] **Step 3: 保留兼容 API**
+- [x] **Step 3: 保留兼容 API**
 
 旧 `/api/health/config/stats/chunks/ingest/chat` 在迁移期继续可用；日志标记 `legacy_api=true`，但不允许绕过新鉴权访问多用户数据。
 
-- [ ] **Step 4: 验证并提交**
+- [x] **Step 4: 验证并提交**
 
 Run: `go test ./cmd/gateway ./internal/gateway/...`
 

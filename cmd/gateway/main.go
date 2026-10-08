@@ -33,64 +33,32 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"knowledge-base/internal/gateway/handler"
-	"knowledge-base/internal/gateway/router"
-	"knowledge-base/internal/knowledge/repo"
-	"knowledge-base/internal/knowledge/repo/vectorstore"
-	"knowledge-base/internal/knowledge/service"
 	"knowledge-base/pkg/config"
 )
 
 func main() {
-	ctx := context.Background()
-
-	// 1. 读取 configs/config.yaml 并打印摘要（确认豆包 Key、向量库选型是否符合预期）
 	cfg, err := config.Load()
 	if err != nil {
 		fatal("加载配置失败", err)
 	}
+	if err := cfg.Validate(); err != nil {
+		fatal("配置校验失败", err)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	runtime, err := buildRuntime(ctx, cfg)
+	if err != nil {
+		fatal("初始化服务失败", err)
+	}
+	defer runtime.Close()
 	fmt.Println(cfg.Describe())
-
-	// 2. 创建 Eino 组件：对话模型、向量化模型
-	cm, err := repo.NewChatModel(ctx, cfg.LLM)
-	if err != nil {
-		fatal("初始化对话模型失败", err)
-	}
-	emb, err := repo.NewEmbedder(ctx, cfg.LLM)
-	if err != nil {
-		fatal("初始化向量化模型失败", err)
-	}
-
-	// 3. 向量库：工厂按配置挑实现（mem / milvus），再适配成领域端口
-	store, err := vectorstore.NewVectorStore(ctx, cfg, emb)
-	if err != nil {
-		fatal("初始化向量库失败", err)
-	}
-	knowledgeRepo := vectorstore.NewRepository(store)
-
-	// 4. 构建两条 Eino 链（只编译一次，之后每个请求复用）
-	ingestPipe, err := repo.NewIngestPipeline(ctx, emb, knowledgeRepo)
-	if err != nil {
-		fatal("构建摄入管道失败", err)
-	}
-	chatPipe, err := repo.NewChatPipeline(ctx, cm, knowledgeRepo)
-	if err != nil {
-		fatal("构建问答管道失败", err)
-	}
-
-	// 5. 组装 service 用例与 gateway 层
-	h := handler.New(cfg,
-		service.NewChatService(chatPipe),
-		service.NewIngestService(ingestPipe),
-		service.NewLibraryService(knowledgeRepo),
-	)
-	engine := router.New(h)
-
-	// 6. 启动 HTTP 服务（阻塞运行）
 	printUsage(cfg)
-	if err := engine.Run(cfg.HTTPAddr); err != nil {
-		fatal("启动 HTTP 服务失败", err)
+	if err := runtime.Run(ctx, 15*time.Second); err != nil {
+		fatal("服务运行失败", err)
 	}
 }
 
@@ -107,6 +75,8 @@ func printUsage(cfg config.Config) {
   POST   /api/ingest          摄入文档    curl -X POST localhost%s/api/ingest -H 'Content-Type: application/json' -d '{"path":"./docs"}'
   POST   /api/chat            问答        curl -X POST localhost%s/api/chat -H 'Content-Type: application/json' -d '{"question":"goroutine 是什么"}'
   POST   /api/chat/stream     流式问答    curl -N -X POST localhost%s/api/chat/stream -H 'Content-Type: application/json' -d '{"question":"goroutine 是什么"}'
+
+完整接口：/api/v1（微信登录、多知识库、文件、索引、问答、用量与审计）
 
 `, cfg.HTTPAddr, cfg.HTTPAddr, cfg.HTTPAddr, cfg.HTTPAddr, cfg.HTTPAddr, cfg.HTTPAddr)
 }
