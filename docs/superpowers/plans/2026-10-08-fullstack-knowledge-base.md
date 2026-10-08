@@ -316,11 +316,11 @@ git commit -m "feat(document): 实现文件全生命周期"
 - Create: `internal/usage/handler.go`
 - Create: `internal/usage/service_test.go`
 
-- [ ] **Step 1: 写并发配额与月份边界测试**
+- [x] **Step 1: 写并发配额与月份边界测试**
 
 测试 UTC 月首日、存储释放、Embedding/Input/Output 汇总，以及两个并发预留不能共同超过额度。
 
-- [ ] **Step 2: 实现用量预留和结算接口**
+- [x] **Step 2: 实现用量预留和结算接口**
 
 ```go
 type QuotaService interface {
@@ -331,11 +331,11 @@ type QuotaService interface {
 }
 ```
 
-- [ ] **Step 3: 实现审计写入和查询**
+- [x] **Step 3: 实现审计写入和查询**
 
 审计 metadata 只允许资源名称、状态、错误码和参数差异，不接受自由正文；查询强制 `actor_user_id=current_user`。
 
-- [ ] **Step 4: 验证并提交**
+- [x] **Step 4: 验证并提交**
 
 Run: `go test ./internal/usage`
 

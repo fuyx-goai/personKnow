@@ -6,12 +6,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	usage "knowledge-base/internal/usage"
 )
 
 type Service struct {
 	repository Repository
 	reindexer  ReindexScheduler
+	auditor    usage.Auditor
 	now        func() time.Time
+}
+
+func (service *Service) UseAuditor(auditor usage.Auditor) *Service {
+	service.auditor = auditor
+	return service
 }
 
 func NewService(repository Repository, reindexers ...ReindexScheduler) *Service {
@@ -33,7 +41,11 @@ func (service *Service) Reindex(ctx context.Context, actorID, libraryID uuid.UUI
 	if service.reindexer == nil {
 		return nil, ErrReindexUnavailable
 	}
-	return service.reindexer.ScheduleLibrary(ctx, actorID, libraryID)
+	jobs, err := service.reindexer.ScheduleLibrary(ctx, actorID, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	return jobs, service.audit(ctx, actorID, "library.reindex", libraryID, "queued")
 }
 
 func (service *Service) List(ctx context.Context, actorID uuid.UUID, filter ListFilter) (ListResult, error) {
@@ -73,7 +85,7 @@ func (service *Service) Create(ctx context.Context, actorID uuid.UUID, command C
 	if err := service.repository.Create(ctx, library, settings); err != nil {
 		return Library{}, err
 	}
-	return library, nil
+	return library, service.audit(ctx, actorID, "library.create", library.ID, "active")
 }
 
 func (service *Service) Get(ctx context.Context, actorID, libraryID uuid.UUID) (Library, error) {
@@ -102,7 +114,10 @@ func (service *Service) Update(ctx context.Context, actorID, libraryID uuid.UUID
 		return err
 	}
 	library.UpdatedAt = service.now()
-	return service.repository.Update(ctx, library)
+	if err := service.repository.Update(ctx, library); err != nil {
+		return err
+	}
+	return service.audit(ctx, actorID, "library.update", library.ID, "active")
 }
 
 func (service *Service) Delete(ctx context.Context, actorID, libraryID uuid.UUID) error {
@@ -113,7 +128,10 @@ func (service *Service) Delete(ctx context.Context, actorID, libraryID uuid.UUID
 	if DecideAccess(actorID, library) != AccessOwner {
 		return ErrForbidden
 	}
-	return service.repository.MarkDeleting(ctx, libraryID)
+	if err := service.repository.MarkDeleting(ctx, libraryID); err != nil {
+		return err
+	}
+	return service.audit(ctx, actorID, "library.delete", libraryID, "deleting")
 }
 
 func (service *Service) Settings(ctx context.Context, actorID, libraryID uuid.UUID) (RetrievalSettings, error) {
@@ -143,7 +161,18 @@ func (service *Service) UpdateSettings(ctx context.Context, actorID, libraryID u
 	if err := service.repository.UpdateSettings(ctx, next); err != nil {
 		return SettingsUpdateResult{}, err
 	}
-	return SettingsUpdateResult{Settings: next, RequiresIndex: requiresIndex}, nil
+	result := SettingsUpdateResult{Settings: next, RequiresIndex: requiresIndex}
+	return result, service.audit(ctx, actorID, "library.retrieval_settings.update", libraryID, "updated")
+}
+
+func (service *Service) audit(ctx context.Context, actorID uuid.UUID, action string, resourceID uuid.UUID, status string) error {
+	if service.auditor == nil {
+		return nil
+	}
+	return service.auditor.RecordAudit(ctx, usage.AuditCommand{
+		ActorUserID: &actorID, Action: action, ResourceType: "library", ResourceID: &resourceID,
+		Result: usage.AuditSuccess, Metadata: map[string]any{"status": status},
+	})
 }
 
 func applyUpdate(library *Library, command UpdateCommand) {

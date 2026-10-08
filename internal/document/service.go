@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	librarydomain "knowledge-base/internal/library"
+	usage "knowledge-base/internal/usage"
 )
 
 type Dependencies struct {
@@ -18,6 +19,7 @@ type Dependencies struct {
 	Files      *LocalFileStore
 	Quota      StorageQuota
 	Jobs       JobScheduler
+	Auditor    usage.Auditor
 	MaxBytes   int64
 	Now        func() time.Time
 }
@@ -28,6 +30,7 @@ type Service struct {
 	files      *LocalFileStore
 	quota      StorageQuota
 	jobs       JobScheduler
+	auditor    usage.Auditor
 	maxBytes   int64
 	now        func() time.Time
 }
@@ -41,7 +44,8 @@ func NewService(dependencies Dependencies) *Service {
 	}
 	return &Service{
 		repository: dependencies.Repository, libraries: dependencies.Libraries, files: dependencies.Files,
-		quota: dependencies.Quota, jobs: dependencies.Jobs, maxBytes: dependencies.MaxBytes, now: dependencies.Now,
+		quota: dependencies.Quota, jobs: dependencies.Jobs, auditor: dependencies.Auditor,
+		maxBytes: dependencies.MaxBytes, now: dependencies.Now,
 	}
 }
 
@@ -79,7 +83,8 @@ func (service *Service) Upload(ctx context.Context, actorID uuid.UUID, command U
 	if err != nil {
 		return UploadResult{}, err
 	}
-	return UploadResult{Document: document, JobID: jobID}, nil
+	result := UploadResult{Document: document, JobID: jobID}
+	return result, service.audit(ctx, actorID, "document.upload", document.ID, "queued")
 }
 
 func (service *Service) List(ctx context.Context, actorID uuid.UUID, filter ListFilter) ([]Document, error) {
@@ -104,7 +109,10 @@ func (service *Service) UpdateMetadata(ctx context.Context, actorID, documentID 
 	document.Tags = normalizeTags(command.Tags)
 	document.UpdatedAt = service.now()
 	document.LibraryID = library.ID
-	return service.repository.UpdateMetadata(ctx, document)
+	if err := service.repository.UpdateMetadata(ctx, document); err != nil {
+		return err
+	}
+	return service.audit(ctx, actorID, "document.update", document.ID, "updated")
 }
 
 func (service *Service) EditContent(ctx context.Context, actorID, documentID uuid.UUID, text string) (EditResult, error) {
@@ -141,7 +149,8 @@ func (service *Service) EditContent(ctx context.Context, actorID, documentID uui
 	if err != nil {
 		return EditResult{}, err
 	}
-	return EditResult{Content: content, JobID: jobID}, nil
+	result := EditResult{Content: content, JobID: jobID}
+	return result, service.audit(ctx, actorID, "document.content.edit", document.ID, "queued")
 }
 
 func (service *Service) Content(ctx context.Context, actorID, documentID uuid.UUID) (ContentVersion, string, error) {
@@ -161,7 +170,11 @@ func (service *Service) Reindex(ctx context.Context, actorID, documentID uuid.UU
 	if err != nil {
 		return uuid.Nil, err
 	}
-	return service.jobs.ScheduleDocument(ctx, JobRequest{ActorID: actorID, LibraryID: library.ID, DocumentID: document.ID, ContentVersionID: document.ActiveContentVersionID, Type: JobReindex})
+	jobID, err := service.jobs.ScheduleDocument(ctx, JobRequest{ActorID: actorID, LibraryID: library.ID, DocumentID: document.ID, ContentVersionID: document.ActiveContentVersionID, Type: JobReindex})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return jobID, service.audit(ctx, actorID, "document.reindex", document.ID, "queued")
 }
 
 func (service *Service) Delete(ctx context.Context, actorID, documentID uuid.UUID) (uuid.UUID, error) {
@@ -172,7 +185,21 @@ func (service *Service) Delete(ctx context.Context, actorID, documentID uuid.UUI
 	if err := service.repository.MarkDeleting(ctx, documentID); err != nil {
 		return uuid.Nil, err
 	}
-	return service.jobs.ScheduleDocument(ctx, JobRequest{ActorID: actorID, LibraryID: library.ID, DocumentID: document.ID, Type: JobDelete})
+	jobID, err := service.jobs.ScheduleDocument(ctx, JobRequest{ActorID: actorID, LibraryID: library.ID, DocumentID: document.ID, Type: JobDelete})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return jobID, service.audit(ctx, actorID, "document.delete", document.ID, "deleting")
+}
+
+func (service *Service) audit(ctx context.Context, actorID uuid.UUID, action string, resourceID uuid.UUID, status string) error {
+	if service.auditor == nil {
+		return nil
+	}
+	return service.auditor.RecordAudit(ctx, usage.AuditCommand{
+		ActorUserID: &actorID, Action: action, ResourceType: "document", ResourceID: &resourceID,
+		Result: usage.AuditSuccess, Metadata: map[string]any{"status": status},
+	})
 }
 
 func (service *Service) ownedDocument(ctx context.Context, actorID, documentID uuid.UUID) (Document, librarydomain.Library, error) {
