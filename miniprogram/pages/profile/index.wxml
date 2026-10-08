@@ -2,32 +2,37 @@
   <app-header title="智深专属知识库" subtitle="个人空间与服务状态" online="{{online}}" />
   <view class="page-content">
     <view class="sheet card">
-      <view class="sheet__title"><text>个人空间设置与知识库状态</text><text class="pill">MVP</text></view>
+      <view class="sheet__title"><text>个人空间设置与知识库状态</text><text class="pill">Personal Pro</text></view>
+      <view class="identity"><view class="avatar">{{avatarLetter}}</view><view><text>{{user.nickname || '微信知识库用户'}}</text><text>{{user.id || '受信任微信身份'}}</text><text class="identity__role">个人知识架构师 · <text>{{online ? '专属实例在线' : '服务未连接'}}</text></text></view></view>
+      <view class="tabs"><button class="{{tab === 'usage' ? 'is-active' : ''}}" data-tab="usage" bindtap="switchTab">容量与用量</button><button class="{{tab === 'rag' ? 'is-active' : ''}}" data-tab="rag" bindtap="switchTab">RAG检索微调</button><button class="{{tab === 'security' ? 'is-active' : ''}}" data-tab="security" bindtap="switchTab">账号与安全</button></view>
 
-      <view class="identity">
-        <view class="avatar">Z</view>
-        <view><text>知识库使用者</text><text>微信小程序本地配置</text><text class="identity__status">{{online ? '● 专属实例在线' : '● 服务未连接'}}</text></view>
+      <state-view wx:if="{{loading}}" type="loading" title="正在同步个人空间" />
+      <view wx:elif="{{error}}" class="error-card">{{error}}</view>
+
+      <view wx:elif="{{tab === 'usage'}}">
+        <view class="usage-card"><view><text>知识库存储空间</text><text>{{storageLabel}}</text></view><view class="progress"><view style="width: {{storageProgress}}"></view></view><text>包含原文件、文本版本与索引元数据</text></view>
+        <view class="usage-card"><view><text>本月 Token 用量</text><text>{{tokenLabel}}</text></view><view class="progress token"><view style="width: {{tokenProgress}}"></view></view><text>Embedding {{usage.embedding_tokens || 0}} · 输入 {{usage.input_tokens || 0}} · 输出 {{usage.output_tokens || 0}}</text></view>
+        <view class="summary"><view><text>{{ownerLibraries.length}}</text><text>私有知识库</text></view><view><text>{{sessions.length}}</text><text>活跃设备会话</text></view></view>
+        <view class="audit"><view class="subhead"><text>最近操作记录</text><text>审计日志</text></view><view wx:for="{{audits}}" wx:key="id" class="audit-row"><view class="audit-dot"></view><view><text>{{item.action}}</text><text>{{item.resource_type}} · {{item.result}}</text></view><text>{{item.occurred_at}}</text></view><text wx:if="{{!audits.length}}" class="empty-text">暂无操作记录</text></view>
       </view>
 
-      <view class="tabs"><button class="is-active">容量与用量</button><button bindtap="unavailable">RAG 检索微调</button><button bindtap="unavailable">账号与安全</button></view>
-
-      <state-view wx:if="{{loading}}" type="loading" title="正在同步服务状态" />
-      <view wx:else>
-        <view wx:if="{{error}}" class="error-card">{{error}}</view>
-        <view class="usage">
-          <view><text>▤ 已建立知识片段</text><text class="usage__value">{{chunkCount}}</text></view>
-          <view class="progress"><view style="width: {{progressWidth}}"></view></view>
-        </view>
-        <view class="usage"><view><text>⌘ 对话模型</text><text class="usage__value usage__model">{{config.chatModel || '未读取'}}</text></view><text class="usage__sub">向量接口：{{config.embedAPI || '—'}}</text></view>
-        <view class="summary"><view><text class="summary__value">{{sourceCount}}</text><text>资料来源</text></view><view><text class="summary__value">{{chunkCount}}</text><text>知识片段</text></view></view>
-
-        <view class="endpoint">
-          <text>知识库服务地址</text>
-          <input class="field" value="{{apiBaseUrl}}" placeholder="https://api.example.com" bindinput="onUrlInput" />
-          <button class="primary-button" bindtap="saveUrl">保存并重新连接</button>
-          <text class="endpoint__hint">真机环境必须使用已加入微信后台白名单的 HTTPS 域名。</text>
-        </view>
+      <view wx:elif="{{tab === 'rag'}}" class="rag-panel">
+        <view wx:if="{{ownerLibraries.length}}">
+          <text class="field-label">当前知识库</text><picker range="{{ownerLibraries}}" range-key="name" value="{{libraryIndex}}" bindchange="onLibraryChange"><view class="select-field">{{ownerLibraries[libraryIndex].name}}⌄</view></picker>
+          <text class="field-label">主力对话与合成模型</text><view class="select-field">{{config.chatModel || 'DeepSeek-V3（混合长检索优化）'}}</view>
+          <view class="range-head"><text>Top-K 候选召回片段数</text><text>{{settings.top_k}} 块</text></view><slider min="1" max="20" step="1" value="{{settings.top_k}}" activeColor="#2BA58F" backgroundColor="#E5EAEC" bindchange="onTopK" />
+          <view class="range-head"><text>相似度过滤阈值 (Cosine Similarity)</text><text>{{thresholdLabel}}</text></view><slider min="0" max="100" step="1" value="{{settings.similarity_threshold * 100}}" activeColor="#2BA58F" backgroundColor="#E5EAEC" bindchange="onThreshold" />
+          <view class="switch-row"><view><text>BGE-Reranker 二次重排</text><text>提高专有术语和代码段检索精准度</text></view><switch checked="{{reranker}}" color="#2BA58F" bindchange="onReranker" /></view>
+          <button class="primary-button save" loading="{{saving}}" bindtap="saveSettings">保存检索设置</button>
+        </view><text wx:else class="empty-text">创建私有知识库后可调整检索参数。</text>
       </view>
+
+      <view wx:else class="security-panel">
+        <view class="trusted"><view>✓</view><view><text>微信小程序受信任沙箱会话</text><text>已校验账号会话，敏感知识仅在受授权请求中解密展现。</text></view></view>
+        <view class="sessions"><view wx:for="{{sessions}}" wx:key="id" class="session-row"><view><text>{{item.device_label || '微信设备'}}</text><text>{{item.client_type}} · 有效至 {{item.expires_at}}</text></view><text>{{item.revoked_at ? '已撤销' : '在线'}}</text></view></view>
+        <button class="backup-button" bindtap="exportBackup">⇩ 导出全量知识库备份 (JSON+Markdown)</button>
+      </view>
+      <button class="logout-button" bindtap="logout">退出当前微信登录</button>
     </view>
   </view>
   <bottom-nav current="profile" />

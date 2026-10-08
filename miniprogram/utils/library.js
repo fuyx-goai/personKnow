@@ -21,4 +21,8 @@ function filterChunks(chunks = [], keyword = '') {
   })
 }
 
-module.exports = { filterChunks, groupChunksBySource }
+function canManageLibrary(library = {}) {
+  return library.access === 'owner'
+}
+
+module.exports = { canManageLibrary, filterChunks, groupChunksBySource }

@@ -55,13 +55,15 @@ function createSSEParser(handlers = {}) {
   let finished = false
   let notified = false
 
-  function notifyDone() {
+  function notifyDone(value) {
     if (notified) return
     notified = true
-    handlers.onDone?.()
+    handlers.onDone?.(value)
   }
 
   function emit(block) {
+    const eventType = block.split('\n')
+      .find((line) => line.startsWith('event:'))?.slice(6).trim()
     const payload = block.split('\n')
       .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trim())
@@ -74,10 +76,17 @@ function createSSEParser(handlers = {}) {
     }
     try {
       const event = JSON.parse(payload)
-      if (event.error) handlers.onError?.(event.error)
-      if (event.delta) handlers.onDelta?.(event.delta)
-      if (event.references) handlers.onReferences?.(event.references)
-      if (event.done) notifyDone()
+      if (eventType === 'delta') handlers.onDelta?.(event.delta)
+      else if (eventType === 'reference') handlers.onReference?.(event)
+      else if (eventType === 'usage') handlers.onUsage?.(event)
+      else if (eventType === 'error') handlers.onError?.(event)
+      else if (eventType === 'done') notifyDone(event)
+      else {
+        if (event.error) handlers.onError?.(event.error)
+        if (event.delta) handlers.onDelta?.(event.delta)
+        if (event.references) handlers.onReferences?.(event.references)
+        if (event.done) notifyDone(event)
+      }
     } catch (error) {
       handlers.onError?.(`响应解析失败：${error.message}`)
     }

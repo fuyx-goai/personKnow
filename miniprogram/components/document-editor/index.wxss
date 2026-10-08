@@ -1,0 +1,8 @@
+.mask { position: fixed; inset: 0; z-index: 85; display: flex; align-items: flex-end; background: rgba(10,20,31,.52); backdrop-filter: blur(8rpx); }
+.panel { width: 100%; max-height: 90vh; padding: 30rpx 28rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 38rpx 38rpx 0 0; background: #fff; overflow-y: auto; }
+.panel__head { display: flex; justify-content: space-between; gap: 20rpx; }.panel__head text { display: block; }.panel__head text:first-child { color: #10192d; font-size: 33rpx; font-weight: 700; }.panel__head text:last-child { margin-top: 6rpx; color: #8b96a2; font-size: 21rpx; }
+.panel__head button { width: 58rpx; height: 58rpx; padding: 0; border-radius: 18rpx; color: #6c7785; background: #f1f4f5; font-size: 32rpx; line-height: 58rpx; }
+.form-row { margin-top: 18rpx; }.form-row > text { display: block; margin-bottom: 9rpx; color: #5a6776; font-size: 22rpx; font-weight: 600; }
+.form-row input, .form-row textarea { width: 100%; padding: 20rpx 22rpx; border: 1rpx solid #e2e8e9; border-radius: 20rpx; color: #172238; background: #f9fbfb; font-size: 24rpx; }
+.form-row .content { min-height: 430rpx; line-height: 1.65; }
+.submit { height: 82rpx; margin-top: 24rpx; border-radius: 23rpx; color: #fff; background: #2ba58f; font-size: 26rpx; font-weight: 700; line-height: 82rpx; }.submit[disabled] { color: #aeb6bf; background: #e8ecef; }

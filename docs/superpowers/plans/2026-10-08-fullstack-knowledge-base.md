@@ -473,23 +473,23 @@ git commit -m "feat(api): 接入全栈业务路由"
 - Create: `miniprogram/tests/auth.test.js`
 - Create: `miniprogram/tests/api.test.js`
 
-- [ ] **Step 1: 写客户端状态与 API 测试**
+- [x] **Step 1: 写客户端状态与 API 测试**
 
 覆盖令牌刷新、401 单次重试、公开库只读、任务轮询、配额错误和 SSE 五类事件。
 
-- [ ] **Step 2: 实现微信登录与会话**
+- [x] **Step 2: 实现微信登录与会话**
 
 使用 `wx.login` 获取 code；访问令牌仅保存在内存，刷新令牌使用小程序安全存储；退出时清理所有本地状态。
 
-- [ ] **Step 3: 接入四个原型页面**
+- [x] **Step 3: 接入四个原型页面**
 
 知识库页接入我的/公开混排；资料页接入 `wx.chooseMessageFile` 上传、编辑、重命名、索引和删除；问答页接入历史与来源；我的空间接入三个页签。
 
-- [ ] **Step 4: 保持原型视觉**
+- [x] **Step 4: 保持原型视觉**
 
 不新增底部入口；复用顶部栏、卡片、标签、按钮和弹层语言；公开卡片仅增加所有者和只读小标签。
 
-- [ ] **Step 5: 验证并提交**
+- [x] **Step 5: 验证并提交**
 
 Run: `node --test miniprogram/tests/*.test.js && find miniprogram -name '*.js' -type f -print0 | xargs -0 -n1 node --check`
 

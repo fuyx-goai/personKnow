@@ -1,0 +1,13 @@
+<view wx:if="{{open}}" class="mask" bindtap="close">
+  <view class="panel" catchtap="stopTap">
+    <view class="panel__head"><view><text>新建知识库</text><text>建立独立的检索边界</text></view><button bindtap="close">×</button></view>
+    <view class="form-row"><text>知识库名称</text><input value="{{name}}" maxlength="120" placeholder="例如：AI 架构与大模型系统" bindinput="onName" /></view>
+    <view class="form-row"><text>分类</text><input value="{{category}}" maxlength="40" placeholder="专业知识" bindinput="onCategory" /></view>
+    <view class="form-row"><text>描述</text><textarea value="{{description}}" maxlength="300" placeholder="简要说明这个知识体系的内容" bindinput="onDescription" /></view>
+    <view class="visibility">
+      <button class="{{visibility === 'private' ? 'is-active' : ''}}" data-value="private" bindtap="setVisibility">私有</button>
+      <button class="{{visibility === 'public' ? 'is-active' : ''}}" data-value="public" bindtap="setVisibility">公开只读</button>
+    </view>
+    <button class="submit" disabled="{{!name || saving}}" bindtap="submit">{{saving ? '正在创建…' : '创建知识库'}}</button>
+  </view>
+</view>

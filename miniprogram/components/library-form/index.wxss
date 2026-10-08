@@ -1,0 +1,11 @@
+.mask { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: rgba(10,20,31,.48); backdrop-filter: blur(8rpx); }
+.panel { width: 100%; padding: 30rpx 28rpx calc(34rpx + env(safe-area-inset-bottom)); border-radius: 38rpx 38rpx 0 0; background: #fff; box-shadow: 0 -16rpx 48rpx rgba(12,29,42,.18); }
+.panel__head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24rpx; }
+.panel__head text { display: block; }.panel__head text:first-child { color: #10192d; font-size: 34rpx; font-weight: 700; }.panel__head text:last-child { margin-top: 7rpx; color: #8b96a2; font-size: 22rpx; }
+.panel__head button { width: 58rpx; height: 58rpx; padding: 0; border-radius: 18rpx; color: #6c7785; background: #f1f4f5; font-size: 32rpx; line-height: 58rpx; }
+.form-row { margin-top: 18rpx; }.form-row > text { display: block; margin-bottom: 9rpx; color: #5a6776; font-size: 22rpx; font-weight: 600; }
+.form-row input, .form-row textarea { width: 100%; padding: 20rpx 22rpx; border: 1rpx solid #e2e8e9; border-radius: 20rpx; color: #172238; background: #f9fbfb; font-size: 25rpx; }
+.form-row textarea { height: 130rpx; }
+.visibility { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; margin-top: 20rpx; padding: 6rpx; border-radius: 20rpx; background: #f0f4f4; }
+.visibility button { height: 66rpx; color: #798592; background: transparent; font-size: 23rpx; line-height: 66rpx; }.visibility button.is-active { color: #168877; background: #fff; box-shadow: 0 5rpx 14rpx rgba(20,45,51,.08); font-weight: 600; }
+.submit { height: 82rpx; margin-top: 26rpx; border-radius: 23rpx; color: #fff; background: #2ba58f; font-size: 26rpx; font-weight: 700; line-height: 82rpx; }.submit[disabled] { color: #aeb6bf; background: #e8ecef; }
