@@ -213,7 +213,7 @@ git commit -m "feat(auth): 实现微信与扫码登录"
 - Create: `internal/library/handler.go`
 - Create: `internal/library/service_test.go`
 
-- [ ] **Step 1: 写权限矩阵测试**
+- [x] **Step 1: 写权限矩阵测试**
 
 ```go
 func TestAccessPolicy(t *testing.T) {
@@ -226,11 +226,11 @@ func TestAccessPolicy(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 实现 CRUD、列表与统计**
+- [x] **Step 2: 实现 CRUD、列表与统计**
 
 列表返回 `owned/public` 分组；公开列表排除当前用户自己的库；删除只标记 `deleting` 并创建清理任务。
 
-- [ ] **Step 3: 实现 RAG 参数校验**
+- [x] **Step 3: 实现 RAG 参数校验**
 
 ```go
 func (s RetrievalSettings) Validate() error {
@@ -242,11 +242,11 @@ func (s RetrievalSettings) Validate() error {
 }
 ```
 
-- [ ] **Step 4: 实现 API 和审计挂钩**
+- [x] **Step 4: 实现 API 和审计挂钩**
 
 覆盖知识库 CRUD、公开列表、统计、检索设置和库级重新索引；所有写操作调用审计端口。
 
-- [ ] **Step 5: 验证并提交**
+- [x] **Step 5: 验证并提交**
 
 Run: `go test ./internal/library`
 
