@@ -573,11 +573,11 @@ git commit -m "feat(migration): 增加旧数据迁移工具"
 - Create: `internal/integration/fullstack_test.go`
 - Create: `docs/verification/fullstack-knowledge-base.md`
 
-- [ ] **Step 1: 运行双用户集成场景**
+- [x] **Step 1: 运行双用户集成场景**
 
 用户 A 私有库对 B 返回 404；A 公开后 B 可问答但所有写操作返回 403；容量与 Token 超限在上传、索引和模型调用前被拒绝。
 
-- [ ] **Step 2: 运行完整验证**
+- [x] **Step 2: 运行完整验证**
 
 ```bash
 go test ./...
@@ -588,11 +588,11 @@ find miniprogram -name '*.js' -type f -print0 | xargs -0 -n1 node --check
 
 Expected: 全部退出码为 0。
 
-- [ ] **Step 3: 执行安全检查**
+- [x] **Step 3: 执行安全检查**
 
 确认 Git 暂存区不包含 `configs/config.yaml`、微信私有配置、API Key、JWT 密钥、数据库密码或真实 OpenID；验证日志测试不会输出正文或令牌。
 
-- [ ] **Step 4: 记录验证证据并提交**
+- [x] **Step 4: 记录验证证据并提交**
 
 ```bash
 git add internal/integration docs/verification internal/gateway/web/dist
