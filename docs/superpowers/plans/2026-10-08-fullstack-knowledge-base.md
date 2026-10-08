@@ -271,7 +271,7 @@ git commit -m "feat(library): 支持多知识库与检索设置"
 - Create: `internal/document/testdata/*`
 - Create: `internal/document/service_test.go`
 
-- [ ] **Step 1: 写路径、格式和配额失败测试**
+- [x] **Step 1: 写路径、格式和配额失败测试**
 
 ```go
 func TestFileStoreNeverUsesClientNameInPath(t *testing.T) {
@@ -282,25 +282,25 @@ func TestFileStoreNeverUsesClientNameInPath(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 实现原子 FileStore**
+- [x] **Step 2: 实现原子 FileStore**
 
 临时文件与正式目录在同一文件系统；计算 SHA-256；成功事务后 rename；失败时删除临时文件；所有路径使用 UUID。
 
-- [ ] **Step 3: 实现解析器注册表**
+- [x] **Step 3: 实现解析器注册表**
 
 `txt/md/csv/html` 使用标准库与 `x/net/html`；DOCX/PPTX 读取 ZIP XML；PDF 使用明确依赖提取文本和页码映射。输出统一 `ParsedContent{Text, StructureMap}`。
 
-- [ ] **Step 4: 实现文档 service 与 API**
+- [x] **Step 4: 实现文档 service 与 API**
 
 上传校验 50 MiB、权限和剩余容量后创建文档与索引任务；编辑生成新版本；重命名只修改展示名；删除创建清理任务。
 
-- [ ] **Step 5: 七类样本验证**
+- [x] **Step 5: 七类样本验证**
 
 Run: `go test ./internal/document -run 'TestParse|TestUpload|TestEdit|TestDelete'`
 
 Expected: 七种格式均得到非空 UTF-8 文本；伪造格式、超限和路径穿越被拒绝。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add internal/document go.mod go.sum
