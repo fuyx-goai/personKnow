@@ -546,19 +546,19 @@ git commit -m "feat(web): 实现扫码登录与多库管理"
 - Modify: `miniprogram/README.md`
 - Create: `README.md`
 
-- [ ] **Step 1: 写幂等迁移测试**
+- [x] **Step 1: 写幂等迁移测试**
 
 同一 `knowledge.json` 连续迁移两次，第二次新增文档数和片段数必须为 0；失败报告包含来源名与错误码但不含正文。
 
-- [ ] **Step 2: 实现迁移命令**
+- [x] **Step 2: 实现迁移命令**
 
 命令要求 `--target-user`、`--source` 和 `--backup-dir`；先备份，创建“默认知识库”，按来源和内容哈希导入文档与向量元数据。
 
-- [ ] **Step 3: 更新部署文档**
+- [x] **Step 3: 更新部署文档**
 
 记录 PostgreSQL 初始化、环境变量、目录权限、migration、启动、健康检查、微信域名配置、日志轮转和恢复步骤。
 
-- [ ] **Step 4: 验证并提交**
+- [x] **Step 4: 验证并提交**
 
 Run: `go test ./internal/migration ./cmd/migrate`
 

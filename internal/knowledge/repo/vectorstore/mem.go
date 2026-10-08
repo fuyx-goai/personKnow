@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"sync"
 
@@ -32,9 +33,10 @@ type entry struct {
 
 // MemStore 内存向量库
 type MemStore struct {
-	mu    sync.RWMutex       // 读写锁：防多个 goroutine 同时读写数据
-	items []entry            // 所有已入库的小段
-	emb   embedding.Embedder // 查询时把"问题"也变成向量，需要用到 Embedder
+	mu       sync.RWMutex       // 读写锁：防多个 goroutine 同时读写数据
+	items    []entry            // 所有已入库的小段
+	emb      embedding.Embedder // 查询时把"问题"也变成向量，需要用到 Embedder
+	filePath string
 }
 
 // 编译期断言：MemStore 必须满足 VectorStore 接口
@@ -43,13 +45,20 @@ var _ VectorStore = (*MemStore)(nil)
 
 // NewMemStore 创建向量库：先尝试加载本地已保存的数据
 func NewMemStore(ctx context.Context, emb embedding.Embedder) (*MemStore, error) {
-	s := &MemStore{emb: emb}
+	return NewMemStoreAt(ctx, emb, storeFile)
+}
+
+func NewMemStoreAt(_ context.Context, emb embedding.Embedder, path string) (*MemStore, error) {
+	path = filepath.Clean(path)
+	s := &MemStore{emb: emb, filePath: path}
 
 	// 如果之前摄入过（knowledge.json 存在），把数据读回内存
-	if raw, err := os.ReadFile(storeFile); err == nil {
+	if raw, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(raw, &s.items); err != nil {
-			return nil, fmt.Errorf("解析知识库文件 %s 失败: %w", storeFile, err)
+			return nil, fmt.Errorf("解析知识库文件 %s 失败: %w", path, err)
 		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("读取知识库文件 %s 失败: %w", path, err)
 	}
 	return s, nil
 }
@@ -234,5 +243,8 @@ func (s *MemStore) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(storeFile, raw, 0o644)
+	if err := os.MkdirAll(filepath.Dir(s.filePath), 0o750); err != nil {
+		return err
+	}
+	return os.WriteFile(s.filePath, raw, 0o640)
 }

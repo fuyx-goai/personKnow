@@ -22,12 +22,15 @@
 
 ## 发布前配置
 
-- 在微信公众平台配置 `request` 合法域名；
+- 在微信公众平台分别配置 `request`、`uploadFile`、`downloadFile` HTTPS 合法域名；
 - 生产环境必须使用 HTTPS；
 - 确认网关可访问 `/api/health`、`/api/config` 与 `/api/v1/*`；
 - 配置微信登录所需的 AppID、AppSecret 与网关合法域名；
+- 反向代理需关闭 SSE 缓冲并允许长连接，否则流式问答会退化为一次性返回；
 - 将 `project.config.json` 中的 `urlCheck` 恢复为 `true`；
-- 使用真实小程序 AppID 重新编译和真机验证。
+- 使用真实小程序 AppID 重新编译，并真机验证登录、七类文件上传、问答引用、Web 扫码确认和退出登录。
+
+微信私有项目配置必须放在 `project.private.config.json`，该文件已被 Git 忽略，禁止提交 AppSecret 或其他凭证。
 
 ## 验证命令
 
