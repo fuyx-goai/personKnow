@@ -179,6 +179,15 @@ pkg/config/              配置结构和校验
 - 所有按钮、状态、统计和来源卡片必须接入真实 API，不保留“后端暂不支持”占位提示。
 - 公开库只读态必须隐藏或禁用编辑、重新索引和删除入口。
 - 加载、空态、失败、配额超限和任务状态使用原型现有视觉语言。
+- 知识库页“全部”筛选中先展示我的知识库，再展示公开知识库；公开卡片沿用原型样式并增加所有者和只读标识。
+
+### 4.11 RAG 参数与账号安全
+
+- 检索配置按知识库存储，默认 `chunk_size=800`、`chunk_overlap=100`、`top_k=5`、`similarity_threshold=0.30`。
+- 修改 `top_k` 或相似度阈值后立即用于新问答；修改切块大小或重叠量会创建库级重建任务。
+- 库级重建按文档逐一创建索引任务；所有文档成功前保留各自旧版本，失败文档可单独重试。
+- 账号安全读取 `auth_sessions` 的脱敏设备信息；撤销会话只更新 `revoked_at`，审计记录操作主体和目标会话。
+- 内容版本首版仅后台保留最近 10 个，不在原型中新增版本历史入口。
 
 ## 5. API 清单
 
@@ -191,9 +200,14 @@ pkg/config/              配置结构和校验
 | Auth | `GET /api/v1/auth/web/tickets/:id` | 票据持有者 |
 | Auth | `POST /api/v1/auth/web/tickets/:id/confirm` | 小程序登录用户 |
 | User | `GET /api/v1/me` | 登录用户 |
+| User | `GET /api/v1/me/sessions` | 登录用户 |
+| User | `DELETE /api/v1/me/sessions/:id` | 会话所有者 |
+| User | `DELETE /api/v1/me/sessions` | 登录用户，退出其他设备 |
 | Library | `GET/POST /api/v1/libraries` | 登录用户 |
 | Library | `GET/PATCH/DELETE /api/v1/libraries/:id` | 读取者/所有者 |
 | Library | `GET /api/v1/libraries/public` | 登录用户 |
+| Library | `GET/PATCH /api/v1/libraries/:id/retrieval-settings` | 读取者/所有者 |
+| Library | `POST /api/v1/libraries/:id/reindex` | 所有者 |
 | Document | `GET/POST /api/v1/documents` | 读取者/所有者 |
 | Document | `GET/PATCH/DELETE /api/v1/documents/:id` | 读取者/所有者 |
 | Document | `GET /api/v1/documents/:id/content` | 读取者 |

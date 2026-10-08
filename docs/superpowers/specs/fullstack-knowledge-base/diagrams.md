@@ -26,6 +26,8 @@ mindmap
       微信登录
       Web扫码登录
       容量与Token
+      RAG检索微调
+      设备会话安全
       账号退出
     系统能力
       PostgreSQL任务
@@ -192,6 +194,7 @@ flowchart TB
             INDEX[Indexing Worker\n任务与版本切换]
             CHAT[Chat\n检索与SSE]
             USAGE[Usage\n配额与审计]
+            SETTINGS[Settings\nRAG参数与会话安全]
         end
         subgraph 数据层
             PG[(PostgreSQL\n业务任务用量审计)]
@@ -208,9 +211,9 @@ flowchart TB
     end
 
     MP & WEB --> GIN
-    GIN --> AUTH & LIB & DOC & CHAT & USAGE
+    GIN --> AUTH & LIB & DOC & CHAT & USAGE & SETTINGS
     INDEX --> PG & FILES & VEC
-    AUTH & LIB & DOC & CHAT & USAGE --> PG
+    AUTH & LIB & DOC & CHAT & USAGE & SETTINGS --> PG
     DOC --> FILES
     CHAT --> VEC
     AUTH --> WX
