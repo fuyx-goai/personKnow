@@ -358,7 +358,7 @@ git commit -m "feat(usage): 增加配额统计与审计"
 - Create: `internal/indexing/worker.go`
 - Create: `internal/indexing/worker_test.go`
 
-- [ ] **Step 1: 写 Mem/Milvus 共同契约测试**
+- [x] **Step 1: 写 Mem/Milvus 共同契约测试**
 
 ```go
 type SearchScope struct {
@@ -370,19 +370,19 @@ type SearchScope struct {
 
 契约测试必须验证：私有范围过滤、内容版本过滤、按版本删除、失败不切换和稳定 chunk ID。
 
-- [ ] **Step 2: 改造向量元数据**
+- [x] **Step 2: 改造向量元数据**
 
 统一字段为 `owner_user_id/library_id/document_id/content_version_id/chunk_index/source_name/page_or_section/visibility`；禁止继续按文件名作为删除边界。
 
-- [ ] **Step 3: 实现任务领取、租约和恢复**
+- [x] **Step 3: 实现任务领取、租约和恢复**
 
 领取 SQL 使用 `FOR UPDATE SKIP LOCKED`；Worker 默认并发 2；启动时将租约过期的 running 任务重新排队。
 
-- [ ] **Step 4: 实现索引阶段**
+- [x] **Step 4: 实现索引阶段**
 
 解析或读取编辑文本 → 按知识库设置切块 → 预留 Token → Embedding → 写新版本向量 → 事务切换 active version → 删除旧向量 → 结算用量和审计。
 
-- [ ] **Step 5: 验证并提交**
+- [x] **Step 5: 验证并提交**
 
 Run: `go test ./internal/platform/vector ./internal/indexing ./internal/knowledge/repo/vectorstore`
 

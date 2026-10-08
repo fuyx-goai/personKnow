@@ -24,6 +24,7 @@ const storeFile = "knowledge.json"
 
 // entry 落盘时每条知识的存储结构
 type entry struct {
+	ID      string         `json:"id"`
 	Content string         `json:"content"`        // 小段正文
 	Vector  []float64      `json:"vector"`         // 这段话的向量
 	Meta    map[string]any `json:"meta,omitempty"` // 元数据（来源文件等）
@@ -62,13 +63,21 @@ func (s *MemStore) Store(ctx context.Context, docs []*schema.Document, opts ...i
 	defer s.mu.Unlock()
 
 	ids := make([]string, 0, len(docs))
-	for i, doc := range docs {
+	for _, doc := range docs {
 		vec := doc.DenseVector() // 取出该文档的向量
 		if len(vec) == 0 {
 			return nil, fmt.Errorf("文档 %q 没有向量，请先调用 Embedder 再入库", doc.ID)
 		}
-		id := fmt.Sprintf("%s_%d", fileStem(doc), len(s.items)+i) // 生成一个简单 ID
-		s.items = append(s.items, entry{Content: doc.Content, Vector: vec, Meta: doc.MetaData})
+		id := doc.ID
+		if id == "" {
+			id = contentID(doc.Content)
+		}
+		item := entry{ID: id, Content: doc.Content, Vector: vec, Meta: cloneMeta(doc.MetaData)}
+		if index := s.indexOf(id); index >= 0 {
+			s.items[index] = item
+		} else {
+			s.items = append(s.items, item)
+		}
 		ids = append(ids, id)
 	}
 
@@ -92,15 +101,16 @@ func (s *MemStore) Retrieve(ctx context.Context, query string, opts ...retriever
 
 	// 2. 遍历库中所有小段，计算相似度
 	s.mu.RLock()
+	items := append([]entry(nil), s.items...)
+	s.mu.RUnlock()
 	type scored struct {
 		idx   int
 		score float64
 	}
-	hits := make([]scored, 0, len(s.items))
-	for i, it := range s.items {
+	hits := make([]scored, 0, len(items))
+	for i, it := range items {
 		hits = append(hits, scored{idx: i, score: cosine(qv, it.Vector)})
 	}
-	s.mu.RUnlock()
 
 	// 3. 按相似度从高到低排序
 	sort.Slice(hits, func(a, b int) bool { return hits[a].score > hits[b].score })
@@ -118,8 +128,9 @@ func (s *MemStore) Retrieve(ctx context.Context, query string, opts ...retriever
 	docs := make([]*schema.Document, 0, k)
 	for _, h := range hits[:k] {
 		docs = append(docs, (&schema.Document{
-			Content:  s.items[h.idx].Content,
-			MetaData: cloneMeta(s.items[h.idx].Meta),
+			ID:       items[h.idx].ID,
+			Content:  items[h.idx].Content,
+			MetaData: cloneMeta(items[h.idx].Meta),
 		}).WithScore(h.score)) // 把相似度分数写进文档，调用方可以拿来展示
 	}
 	return docs, nil
@@ -150,11 +161,45 @@ func (s *MemStore) List(ctx context.Context, limit int) ([]*schema.Document, err
 	docs := make([]*schema.Document, 0, n)
 	for i := 0; i < n; i++ {
 		docs = append(docs, &schema.Document{
+			ID:       s.items[i].ID,
 			Content:  s.items[i].Content,
 			MetaData: cloneMeta(s.items[i].Meta),
 		})
 	}
 	return docs, nil
+}
+
+func (s *MemStore) DeleteByIDs(ctx context.Context, ids []string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	wanted := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	kept := make([]entry, 0, len(s.items))
+	for _, item := range s.items {
+		if _, exists := wanted[item.ID]; !exists {
+			kept = append(kept, item)
+		}
+	}
+	deleted := len(s.items) - len(kept)
+	if deleted == 0 {
+		return 0, nil
+	}
+	s.items = kept
+	if err := s.save(); err != nil {
+		return 0, err
+	}
+	return deleted, nil
+}
+
+func (s *MemStore) indexOf(id string) int {
+	for index := range s.items {
+		if s.items[index].ID == id {
+			return index
+		}
+	}
+	return -1
 }
 
 // DeleteBySource 按来源文件名删除片段，返回删除条数；source 为空表示清空整库
