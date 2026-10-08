@@ -66,6 +66,7 @@ function createAPIClient(options = {}) {
     health: () => request('/api/health', { skipRefresh: true }),
     config: () => request('/api/config', { skipRefresh: true }),
     me: () => request('/api/v1/me'),
+    confirmWebTicket: (id, secret) => request(`/api/v1/auth/web/tickets/${id}/confirm`, { method: 'POST', data: { secret } }),
     libraries: (filter = {}) => request(`/api/v1/libraries${queryString(filter)}`),
     createLibrary: (data) => request('/api/v1/libraries', { method: 'POST', data }),
     updateLibrary: (id, data) => request(`/api/v1/libraries/${id}`, { method: 'PATCH', data }),

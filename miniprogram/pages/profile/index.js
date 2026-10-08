@@ -1,4 +1,5 @@
 const api = require('../../services/api')
+const { parseWebLoginPayload } = require('../../services/auth')
 const { formatBytes } = require('../../utils/format')
 
 const app = getApp()
@@ -94,6 +95,19 @@ Page({
       wx.showToast({ title: '备份 JSON 已复制', icon: 'success' })
     } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
     finally { wx.hideLoading() }
+  },
+
+  scanWebLogin() {
+    wx.scanCode({
+      scanType: ['qrCode'],
+      success: async (result) => {
+        try {
+          const ticket = parseWebLoginPayload(result.result)
+          await api.confirmWebTicket(ticket.id, ticket.secret)
+          wx.showToast({ title: 'Web 登录已确认', icon: 'success' })
+        } catch (error) { wx.showToast({ title: error.message, icon: 'none', duration: 3000 }) }
+      },
+    })
   },
 
   logout() {

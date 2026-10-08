@@ -515,19 +515,19 @@ git commit -m "feat(miniprogram): 接入完整知识库能力"
 - Create: `web/src/utils/auth.js`
 - Create: `web/src/utils/auth.test.js`
 
-- [ ] **Step 1: 写扫码轮询与刷新测试**
+- [x] **Step 1: 写扫码轮询与刷新测试**
 
 使用 Vitest 验证票据 `pending/confirmed/expired`、访问令牌刷新和 401 重试只发生一次。
 
-- [ ] **Step 2: 实现扫码登录**
+- [x] **Step 2: 实现扫码登录**
 
 创建票据后生成本地二维码；2 秒轮询，确认后保存刷新会话；组件卸载时停止轮询并废弃过期票据。
 
-- [ ] **Step 3: 接入知识库、资料、问答和空间页面**
+- [x] **Step 3: 接入知识库、资料、问答和空间页面**
 
 页面信息结构与小程序保持一致；文件上传使用浏览器 multipart；编辑文本使用弹层；任务状态轮询到终态停止。
 
-- [ ] **Step 4: 构建并提交**
+- [x] **Step 4: 构建并提交**
 
 Run: `npm test -- --run && npm run build`
 

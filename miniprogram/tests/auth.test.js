@@ -1,7 +1,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 
-const { createAuthSession } = require('../services/auth')
+const { createAuthSession, parseWebLoginPayload } = require('../services/auth')
 
 function createStorage() {
   const values = new Map()
@@ -58,4 +58,12 @@ test('退出登录会撤销服务端会话并清除全部令牌', async () => {
   assert.equal(revoked, 'access-token')
   assert.equal(session.accessToken(), '')
   assert.equal(storage.values.has('refreshToken'), false)
+})
+
+test('Web 登录二维码只接受 personknow 票据协议', () => {
+  assert.deepEqual(parseWebLoginPayload('personknow://web-login?id=ticket-1&secret=secret-1'), {
+    id: 'ticket-1',
+    secret: 'secret-1',
+  })
+  assert.throws(() => parseWebLoginPayload('https://example.com/?secret=bad'), /无效/)
 })

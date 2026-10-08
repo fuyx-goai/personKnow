@@ -71,4 +71,16 @@ function createAuthSession(options = {}) {
   }
 }
 
-module.exports = { REFRESH_TOKEN_KEY, createAuthSession }
+function parseWebLoginPayload(payload = '') {
+  const prefix = 'personknow://web-login?'
+  if (!String(payload).startsWith(prefix)) throw new Error('无效的 Web 登录二维码')
+  const values = {}
+  String(payload).slice(prefix.length).split('&').forEach((part) => {
+    const [key, value] = part.split('=')
+    if (key && value) values[decodeURIComponent(key)] = decodeURIComponent(value)
+  })
+  if (!values.id || !values.secret) throw new Error('无效的 Web 登录票据')
+  return { id: values.id, secret: values.secret }
+}
+
+module.exports = { REFRESH_TOKEN_KEY, createAuthSession, parseWebLoginPayload }

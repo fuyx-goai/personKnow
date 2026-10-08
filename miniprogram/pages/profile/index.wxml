@@ -30,6 +30,7 @@
       <view wx:else class="security-panel">
         <view class="trusted"><view>✓</view><view><text>微信小程序受信任沙箱会话</text><text>已校验账号会话，敏感知识仅在受授权请求中解密展现。</text></view></view>
         <view class="sessions"><view wx:for="{{sessions}}" wx:key="id" class="session-row"><view><text>{{item.device_label || '微信设备'}}</text><text>{{item.client_type}} · 有效至 {{item.expires_at}}</text></view><text>{{item.revoked_at ? '已撤销' : '在线'}}</text></view></view>
+        <button class="scan-button" bindtap="scanWebLogin">▣ 扫描并确认 Web 登录</button>
         <button class="backup-button" bindtap="exportBackup">⇩ 导出全量知识库备份 (JSON+Markdown)</button>
       </view>
       <button class="logout-button" bindtap="logout">退出当前微信登录</button>
