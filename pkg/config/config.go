@@ -79,10 +79,15 @@ type MilvusConfig struct {
 
 // Config 服务总体配置（对应 config.yaml 顶层）
 type Config struct {
-	HTTPAddr    string       `yaml:"http_addr"`    // HTTP 监听地址
-	VectorStore string       `yaml:"vector_store"` // 向量库类型：mem / milvus
-	LLM         LLMConfig    `yaml:"llm"`          // 大模型参数
-	Milvus      MilvusConfig `yaml:"milvus"`       // Milvus 参数（vector_store=milvus 时生效）
+	HTTPAddr    string         `yaml:"http_addr"`    // HTTP 监听地址
+	VectorStore string         `yaml:"vector_store"` // 向量库类型：mem / milvus
+	LLM         LLMConfig      `yaml:"llm"`          // 大模型参数
+	Milvus      MilvusConfig   `yaml:"milvus"`       // Milvus 参数（vector_store=milvus 时生效）
+	Database    DatabaseConfig `yaml:"database"`
+	Auth        AuthConfig     `yaml:"auth"`
+	Storage     StorageConfig  `yaml:"storage"`
+	Worker      WorkerConfig   `yaml:"worker"`
+	Log         LogConfig      `yaml:"log"`
 }
 
 // ==================== 加载 ====================
@@ -132,6 +137,7 @@ func (c *Config) applyDefaults() {
 	if c.Milvus.Dim <= 0 {
 		c.Milvus.Dim = defaultMilvusDim
 	}
+	c.applyRuntimeDefaults()
 }
 
 // locate 定位配置文件，让"项目根目录启动"和"子目录里跑测试"都能找到同一个文件

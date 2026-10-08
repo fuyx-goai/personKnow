@@ -154,7 +154,10 @@ func TestIngestAndRetrieve(t *testing.T) {
 
 	// 4. 通过 service 层用例摄入示例文档
 	svc := service.NewIngestService(ingestPipe)
-	results, err := svc.Ingest(ctx, dto.IngestCommand{Paths: []string{docsDir}})
+	results, err := svc.Ingest(ctx, dto.IngestCommand{Paths: []string{
+		filepath.Join(docsDir, "go-notes.md"),
+		filepath.Join(docsDir, "deploy-notes.md"),
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,7 +45,7 @@ miniprogram/                  微信登录与原型四页真实 API
 - Create: `internal/platform/logging/logger_test.go`
 - Modify: `go.mod`
 
-- [ ] **Step 1: 写失败测试，覆盖环境变量覆盖、request_id 和敏感字段过滤**
+- [x] **Step 1: 写失败测试，覆盖环境变量覆盖、request_id 和敏感字段过滤**
 
 ```go
 func TestLoadUsesEnvironmentSecrets(t *testing.T) {
@@ -57,13 +57,13 @@ func TestLoadUsesEnvironmentSecrets(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行定向测试并确认失败**
+- [x] **Step 2: 运行定向测试并确认失败**
 
 Run: `go test ./pkg/config ./internal/platform/httpx ./internal/platform/logging`
 
 Expected: FAIL，提示新类型或函数未定义。
 
-- [ ] **Step 3: 实现配置和基础设施**
+- [x] **Step 3: 实现配置和基础设施**
 
 ```go
 type DatabaseConfig struct { URL string; MaxConns int32 }
@@ -81,17 +81,17 @@ type LogConfig struct { Dir string; MaxSizeMB int; RetainDays int }
 
 错误响应固定为 `code/message/request_id/details`；日志使用 `slog.JSONHandler`，通过白名单属性记录 request、worker 和模型元数据。
 
-- [ ] **Step 4: 更新忽略规则并提供无密钥示例配置**
+- [x] **Step 4: 更新忽略规则并提供无密钥示例配置**
 
 `.gitignore` 必须忽略 `configs/config.yaml`、`configs/config.local.yaml` 和 `miniprogram/project.private.config.json`；示例文件中的所有敏感值为空或环境变量说明。
 
-- [ ] **Step 5: 运行测试与格式化**
+- [x] **Step 5: 运行测试与格式化**
 
 Run: `gofmt -w pkg/config internal/platform && go test ./pkg/config ./internal/platform/...`
 
 Expected: PASS。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add .gitignore configs/config.example.yaml go.mod go.sum pkg/config internal/platform
