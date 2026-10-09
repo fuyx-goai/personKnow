@@ -18,6 +18,25 @@ PersonKnow 是一个按 Figma「个人知识库小程序」原型实现的全栈
 - Web：Vue 3、Vite、Vitest；
 - 小程序：微信原生小程序。
 
+## 后端架构
+
+后端目录参考 [BwCloudWeGo/bw-cli](https://github.com/BwCloudWeGo/bw-cli) 的模块化单体约定：`internal/gateway` 统一承载 HTTP 协议入口，各业务域按 `entity/handler/repo/service` 分层，`internal/platform` 只放公共基础设施。
+
+```text
+internal/
+  gateway/                 handler / request / router / web
+  account/                 entity / handler / repo / service
+  library/                 entity / handler / repo / service
+  document/                entity / handler / repo / service
+  indexing/                entity / handler / repo / service
+  chat/                    entity / handler / repo / service
+  usage/                   entity / handler / repo / service
+  migration/               entity / repo / service
+  platform/                httpx / logging / postgres / vector
+```
+
+详细依赖方向见 [docs/architecture/backend-layout.md](docs/architecture/backend-layout.md)，强制开发约束见 [AGENTS.md](AGENTS.md)。
+
 ## 项目环境
 
 | 依赖 | 版本/要求 | 用途 |

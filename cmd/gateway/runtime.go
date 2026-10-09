@@ -10,25 +10,37 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"knowledge-base/internal/account"
-	"knowledge-base/internal/chat"
-	"knowledge-base/internal/document"
+	accounthandler "knowledge-base/internal/account/handler"
+	accountrepo "knowledge-base/internal/account/repo"
+	accountservice "knowledge-base/internal/account/service"
+	chathandler "knowledge-base/internal/chat/handler"
+	chatrepo "knowledge-base/internal/chat/repo"
+	chatservice "knowledge-base/internal/chat/service"
+	documenthandler "knowledge-base/internal/document/handler"
+	documentrepo "knowledge-base/internal/document/repo"
+	documentservice "knowledge-base/internal/document/service"
 	legacyhandler "knowledge-base/internal/gateway/handler"
 	"knowledge-base/internal/gateway/router"
-	"knowledge-base/internal/indexing"
+	indexinghandler "knowledge-base/internal/indexing/handler"
+	indexingrepo "knowledge-base/internal/indexing/repo"
+	indexingservice "knowledge-base/internal/indexing/service"
 	legacyrepo "knowledge-base/internal/knowledge/repo"
 	"knowledge-base/internal/knowledge/repo/vectorstore"
 	legacyservice "knowledge-base/internal/knowledge/service"
-	"knowledge-base/internal/library"
+	libraryhandler "knowledge-base/internal/library/handler"
+	libraryrepo "knowledge-base/internal/library/repo"
+	libraryservice "knowledge-base/internal/library/service"
 	"knowledge-base/internal/platform/logging"
 	platformpostgres "knowledge-base/internal/platform/postgres"
-	"knowledge-base/internal/usage"
+	usagehandler "knowledge-base/internal/usage/handler"
+	usagerepo "knowledge-base/internal/usage/repo"
+	usageservice "knowledge-base/internal/usage/service"
 	"knowledge-base/pkg/config"
 )
 
 type applicationRuntime struct {
 	server *http.Server
-	worker *indexing.Worker
+	worker *indexingservice.Worker
 	pool   *pgxpool.Pool
 	cfg    config.Config
 }
@@ -60,7 +72,7 @@ func buildRuntime(ctx context.Context, cfg config.Config) (*applicationRuntime, 
 
 // composeApplication 是全栈应用的装配入口：复用底层模型与向量库，
 // 再把账号、知识库、文档、索引、问答和用量模块连接到同一套路由。
-func composeApplication(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) (http.Handler, *indexing.Worker, error) {
+func composeApplication(ctx context.Context, cfg config.Config, pool *pgxpool.Pool) (http.Handler, *indexingservice.Worker, error) {
 	chatModel, err := legacyrepo.NewChatModel(ctx, cfg.LLM)
 	if err != nil {
 		return nil, nil, err
@@ -85,37 +97,37 @@ func composeApplication(ctx context.Context, cfg config.Config, pool *pgxpool.Po
 	legacy := legacyhandler.New(cfg, legacyservice.NewChatService(legacyChat),
 		legacyservice.NewIngestService(ingestPipeline), legacyservice.NewLibraryService(legacyRepository))
 
-	usageRepository := usage.NewPostgresRepository(pool)
-	usageService := usage.NewService(usageRepository, time.Now)
-	indexRepository := indexing.NewPostgresRepository(pool)
-	libraryService := library.NewService(library.NewPostgresRepository(pool), indexRepository).UseAuditor(usageService)
-	files := document.NewLocalFileStore(cfg.Storage.DataDir)
-	documentService := document.NewService(document.Dependencies{
-		Repository: document.NewPostgresRepository(pool), Libraries: libraryService, Files: files,
+	usageRepository := usagerepo.NewPostgresRepository(pool)
+	usageService := usageservice.NewService(usageRepository, time.Now)
+	indexRepository := indexingrepo.NewPostgresRepository(pool)
+	libraryService := libraryservice.NewService(libraryrepo.NewPostgresRepository(pool), indexRepository).UseAuditor(usageService)
+	files := documentrepo.NewLocalFileStore(cfg.Storage.DataDir)
+	documentService := documentservice.NewService(documentservice.Dependencies{
+		Repository: documentrepo.NewPostgresRepository(pool), Libraries: libraryService, Files: files,
 		Quota: usageService, Jobs: indexRepository, Auditor: usageService, MaxBytes: cfg.Storage.MaxFileBytes,
 	})
-	codec, err := account.NewIdentityCodec([]byte(cfg.Auth.IdentitySecret))
+	codec, err := accountrepo.NewIdentityCodec([]byte(cfg.Auth.IdentitySecret))
 	if err != nil {
 		return nil, nil, err
 	}
-	tokens := account.NewTokenManager([]byte(cfg.Auth.JWTSecret), cfg.Auth.AccessTTL, cfg.Auth.RefreshTTL)
-	accountService := account.NewService(account.NewPostgresRepository(pool, codec),
-		account.NewHTTPWeChatClient(cfg.Auth.WeChatAppID, cfg.Auth.WeChatSecret, nil), tokens, time.Now).UseAuditor(usageService)
+	tokens := accountservice.NewTokenManager([]byte(cfg.Auth.JWTSecret), cfg.Auth.AccessTTL, cfg.Auth.RefreshTTL)
+	accountService := accountservice.NewService(accountrepo.NewPostgresRepository(pool, codec),
+		accountrepo.NewHTTPWeChatClient(cfg.Auth.WeChatAppID, cfg.Auth.WeChatSecret, nil), tokens, time.Now).UseAuditor(usageService)
 	scopedVectors := vectorstore.NewScopedRepository(store)
-	sourceLoader := indexing.NewPostgresSourceLoader(pool, files, document.NewParserRegistry(), usageService)
-	processor := indexing.NewProcessor(indexing.ProcessorDependencies{
+	sourceLoader := indexingservice.NewPostgresSourceLoader(pool, files, documentrepo.NewParserRegistry(), usageService)
+	processor := indexingservice.NewProcessor(indexingservice.ProcessorDependencies{
 		Sources: sourceLoader, Embedder: embedder, Vectors: scopedVectors, Quota: usageService,
 	})
-	worker := indexing.NewWorker("gateway-"+uuid.NewString(), indexRepository, processor, cfg.Worker.Lease, time.Now)
-	chatRepository := chat.NewPostgresRepository(pool)
-	chatService := chat.NewService(chat.ServiceDependencies{
-		Repository: chatRepository, Engine: chat.NewVectorEngine(scopedVectors, chat.NewEinoGenerator(chatModel)),
+	worker := indexingservice.NewWorker("gateway-"+uuid.NewString(), indexRepository, processor, cfg.Worker.Lease, time.Now)
+	chatRepository := chatrepo.NewPostgresRepository(pool)
+	chatService := chatservice.NewService(chatservice.ServiceDependencies{
+		Repository: chatRepository, Engine: chatservice.NewVectorEngine(scopedVectors, chatservice.NewEinoGenerator(chatModel)),
 		Quota: usageService, Now: time.Now,
 	})
 	engine := router.New(legacy, router.V1Handlers{
-		Verifier: tokens, Account: account.NewHandler(accountService), Library: library.NewHandler(libraryService),
-		Document: document.NewHandler(documentService), Indexing: indexing.NewHandler(indexRepository),
-		Chat: chat.NewHandler(chatService), Usage: usage.NewHandler(usageService),
+		Verifier: tokens, Account: accounthandler.NewHandler(accountService), Library: libraryhandler.NewHandler(libraryService),
+		Document: documenthandler.NewHandler(documentService), Indexing: indexinghandler.NewHandler(indexRepository),
+		Chat: chathandler.NewHandler(chatService), Usage: usagehandler.NewHandler(usageService),
 	})
 	return engine, worker, nil
 }

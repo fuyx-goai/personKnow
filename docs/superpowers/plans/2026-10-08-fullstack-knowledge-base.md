@@ -17,12 +17,12 @@
 ```text
 cmd/gateway/                  组合启动 API、数据库与 Worker
 cmd/migrate/                  schema 和旧 knowledge.json 迁移命令
-internal/account/             微信、JWT、刷新会话、扫码登录
-internal/library/             知识库、访问策略、RAG 参数
-internal/document/            文件元数据、内容版本、解析器、FileStore
-internal/indexing/            PostgreSQL 任务状态机与 Worker
-internal/chat/                会话、消息、检索范围与引用
-internal/usage/               配额、流水、汇总与审计
+internal/account/             entity/handler/repo/service：微信、JWT、刷新会话、扫码登录
+internal/library/             entity/handler/repo/service：知识库、访问策略、RAG 参数
+internal/document/            entity/handler/repo/service：文件元数据、内容版本、解析器、FileStore
+internal/indexing/            entity/handler/repo/service：PostgreSQL 任务状态机与 Worker
+internal/chat/                entity/handler/repo/service：会话、消息、检索范围与引用
+internal/usage/               entity/handler/repo/service：配额、流水、汇总与审计
 internal/platform/httpx/      request_id、错误体、鉴权中间件
 internal/platform/logging/    JSON 日志与滚动输出
 internal/platform/postgres/   pgx、事务和 SQL migration
@@ -192,7 +192,7 @@ func TestConfirmTicketOnlyOnce(t *testing.T) {
 
 - [x] **Step 5: 运行测试**
 
-Run: `go test ./internal/account ./internal/platform/httpx`
+Run: `go test ./internal/account/... ./internal/platform/httpx`
 
 Expected: PASS，包含过期票据、重复消费、撤销会话和非法 JWT。
 
@@ -296,7 +296,7 @@ func TestFileStoreNeverUsesClientNameInPath(t *testing.T) {
 
 - [x] **Step 5: 七类样本验证**
 
-Run: `go test ./internal/document -run 'TestParse|TestUpload|TestEdit|TestDelete'`
+Run: `go test ./internal/document/... -run 'TestParse|TestUpload|TestEdit|TestDelete'`
 
 Expected: 七种格式均得到非空 UTF-8 文本；伪造格式、超限和路径穿越被拒绝。
 
@@ -384,7 +384,7 @@ type SearchScope struct {
 
 - [x] **Step 5: 验证并提交**
 
-Run: `go test ./internal/platform/vector ./internal/indexing ./internal/knowledge/repo/vectorstore`
+Run: `go test ./internal/platform/vector ./internal/indexing/... ./internal/knowledge/repo/vectorstore`
 
 ```bash
 git add internal/platform/vector internal/indexing internal/knowledge/repo/vectorstore
@@ -419,7 +419,7 @@ git commit -m "feat(indexing): 实现版本化异步索引"
 
 - [x] **Step 5: 验证并提交**
 
-Run: `go test ./internal/chat ./internal/knowledge/repo`
+Run: `go test ./internal/chat/... ./internal/knowledge/repo`
 
 ```bash
 git add internal/chat internal/knowledge/repo/chat_pipeline.go
@@ -560,7 +560,7 @@ git commit -m "feat(web): 实现扫码登录与多库管理"
 
 - [x] **Step 4: 验证并提交**
 
-Run: `go test ./internal/migration ./cmd/migrate`
+Run: `go test ./internal/migration/... ./cmd/migrate`
 
 ```bash
 git add README.md docs miniprogram/README.md internal/migration cmd/migrate

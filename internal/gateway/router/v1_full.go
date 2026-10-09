@@ -5,13 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"knowledge-base/internal/account"
-	"knowledge-base/internal/chat"
-	"knowledge-base/internal/document"
-	"knowledge-base/internal/indexing"
-	"knowledge-base/internal/library"
+	account "knowledge-base/internal/account/handler"
+	chat "knowledge-base/internal/chat/handler"
+	document "knowledge-base/internal/document/handler"
+	indexing "knowledge-base/internal/indexing/handler"
+	library "knowledge-base/internal/library/handler"
 	"knowledge-base/internal/platform/httpx"
-	"knowledge-base/internal/usage"
+	usage "knowledge-base/internal/usage/handler"
 )
 
 type V1Handlers struct {

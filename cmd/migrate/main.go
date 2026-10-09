@@ -15,9 +15,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"knowledge-base/internal/document"
+	document "knowledge-base/internal/document/repo"
 	"knowledge-base/internal/knowledge/repo/vectorstore"
-	"knowledge-base/internal/migration"
+	migration "knowledge-base/internal/migration/entity"
+	migrationrepo "knowledge-base/internal/migration/repo"
+	migrationservice "knowledge-base/internal/migration/service"
 	platformpostgres "knowledge-base/internal/platform/postgres"
 	platformvector "knowledge-base/internal/platform/vector"
 	"knowledge-base/pkg/config"
@@ -134,8 +136,8 @@ func runLegacy(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, optio
 		}
 		return vectorstore.NewScopedRepository(store), nil
 	}}
-	migrator := migration.NewLegacyMigrator(migration.Dependencies{
-		Repository: migration.NewPostgresRepository(pool), Vectors: writer,
+	migrator := migrationservice.NewLegacyMigrator(migration.Dependencies{
+		Repository: migrationrepo.NewPostgresRepository(pool), Vectors: writer,
 		Files: document.NewLocalFileStore(cfg.Storage.DataDir),
 	})
 	report, err := migrator.Migrate(ctx, migration.Options{

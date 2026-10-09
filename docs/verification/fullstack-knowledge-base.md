@@ -49,9 +49,9 @@ find miniprogram -name '*.js' -type f -print0 | xargs -0 -n1 node --check
 ```bash
 TEST_DATABASE_URL='postgres://.../personknow_test?sslmode=disable' \
   go test -count=1 -v \
-  ./internal/platform/postgres ./internal/account ./internal/library \
-  ./internal/document ./internal/indexing ./internal/chat ./internal/usage \
-  ./internal/migration ./internal/integration
+  ./internal/platform/postgres ./internal/account/... ./internal/library/... \
+  ./internal/document/... ./internal/indexing/... ./internal/chat/... ./internal/usage/... \
+  ./internal/migration/... ./internal/integration
 ```
 
 结果：全部通过，包括：

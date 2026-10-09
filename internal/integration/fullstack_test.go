@@ -12,13 +12,22 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"knowledge-base/internal/chat"
-	"knowledge-base/internal/document"
-	"knowledge-base/internal/indexing"
-	"knowledge-base/internal/library"
+	chat "knowledge-base/internal/chat/entity"
+	chatrepo "knowledge-base/internal/chat/repo"
+	chatservice "knowledge-base/internal/chat/service"
+	document "knowledge-base/internal/document/entity"
+	documentrepo "knowledge-base/internal/document/repo"
+	documentservice "knowledge-base/internal/document/service"
+	indexing "knowledge-base/internal/indexing/entity"
+	indexingservice "knowledge-base/internal/indexing/service"
+	library "knowledge-base/internal/library/entity"
+	libraryrepo "knowledge-base/internal/library/repo"
+	libraryservice "knowledge-base/internal/library/service"
 	platformpostgres "knowledge-base/internal/platform/postgres"
 	platformvector "knowledge-base/internal/platform/vector"
-	"knowledge-base/internal/usage"
+	usage "knowledge-base/internal/usage/entity"
+	usagerepo "knowledge-base/internal/usage/repo"
+	usageservice "knowledge-base/internal/usage/service"
 	"knowledge-base/pkg/config"
 )
 
@@ -26,8 +35,8 @@ func TestTwoUserVisibilityPublicQuestionAndReadOnlyWrite(t *testing.T) {
 	ctx, pool := integrationDatabase(t)
 	ownerID := seedUserWithPlan(t, ctx, pool, 1<<30, 100000)
 	readerID := seedUserWithPlan(t, ctx, pool, 1<<30, 100000)
-	usageService := usage.NewService(usage.NewPostgresRepository(pool), time.Now)
-	libraryService := library.NewService(library.NewPostgresRepository(pool)).UseAuditor(usageService)
+	usageService := usageservice.NewService(usagerepo.NewPostgresRepository(pool), time.Now)
+	libraryService := libraryservice.NewService(libraryrepo.NewPostgresRepository(pool)).UseAuditor(usageService)
 	created, err := libraryService.Create(ctx, ownerID, library.CreateCommand{Name: "集成测试私有库"})
 	if err != nil {
 		t.Fatal(err)
@@ -52,16 +61,16 @@ func TestTwoUserVisibilityPublicQuestionAndReadOnlyWrite(t *testing.T) {
 func TestQuotaRejectsBeforePersistenceEmbeddingAndModel(t *testing.T) {
 	ctx, pool := integrationDatabase(t)
 	userID := seedUserWithPlan(t, ctx, pool, 0, 0)
-	usageService := usage.NewService(usage.NewPostgresRepository(pool), time.Now)
-	libraryService := library.NewService(library.NewPostgresRepository(pool))
+	usageService := usageservice.NewService(usagerepo.NewPostgresRepository(pool), time.Now)
+	libraryService := libraryservice.NewService(libraryrepo.NewPostgresRepository(pool))
 	created, err := libraryService.Create(ctx, userID, library.CreateCommand{Name: "零配额知识库"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	jobs := &jobRecorder{}
-	documentService := document.NewService(document.Dependencies{
-		Repository: document.NewPostgresRepository(pool), Libraries: libraryService,
-		Files: document.NewLocalFileStore(t.TempDir()), Quota: usageService, Jobs: jobs,
+	documentService := documentservice.NewService(documentservice.Dependencies{
+		Repository: documentrepo.NewPostgresRepository(pool), Libraries: libraryService,
+		Files: documentrepo.NewLocalFileStore(t.TempDir()), Quota: usageService, Jobs: jobs,
 	})
 	_, err = documentService.Upload(ctx, userID, document.UploadCommand{
 		LibraryID: created.ID, OriginalName: "quota.md", Reader: strings.NewReader("# quota"),
@@ -74,11 +83,11 @@ func TestQuotaRejectsBeforePersistenceEmbeddingAndModel(t *testing.T) {
 	assertChatQuotaStopsModel(t, ctx, pool, usageService, userID, created.ID)
 }
 
-func assertPublicDocumentWriteRejected(t *testing.T, ctx context.Context, pool *pgxpool.Pool, libraries *library.Service, quota *usage.Service, actorID, libraryID uuid.UUID) {
+func assertPublicDocumentWriteRejected(t *testing.T, ctx context.Context, pool *pgxpool.Pool, libraries *libraryservice.Service, quota *usageservice.Service, actorID, libraryID uuid.UUID) {
 	t.Helper()
-	service := document.NewService(document.Dependencies{
-		Repository: document.NewPostgresRepository(pool), Libraries: libraries,
-		Files: document.NewLocalFileStore(t.TempDir()), Quota: quota, Jobs: &jobRecorder{},
+	service := documentservice.NewService(documentservice.Dependencies{
+		Repository: documentrepo.NewPostgresRepository(pool), Libraries: libraries,
+		Files: documentrepo.NewLocalFileStore(t.TempDir()), Quota: quota, Jobs: &jobRecorder{},
 	})
 	_, err := service.Upload(ctx, actorID, document.UploadCommand{
 		LibraryID: libraryID, OriginalName: "forbidden.md", Reader: strings.NewReader("private"),
@@ -88,11 +97,11 @@ func assertPublicDocumentWriteRejected(t *testing.T, ctx context.Context, pool *
 	}
 }
 
-func assertPublicLibraryCanAnswer(t *testing.T, ctx context.Context, pool *pgxpool.Pool, quota *usage.Service, userID, libraryID uuid.UUID) {
+func assertPublicLibraryCanAnswer(t *testing.T, ctx context.Context, pool *pgxpool.Pool, quota *usageservice.Service, userID, libraryID uuid.UUID) {
 	t.Helper()
 	engine := &chatEngine{}
-	service := chat.NewService(chat.ServiceDependencies{
-		Repository: chat.NewPostgresRepository(pool), Engine: engine, Quota: quota, Now: time.Now,
+	service := chatservice.NewService(chatservice.ServiceDependencies{
+		Repository: chatrepo.NewPostgresRepository(pool), Engine: engine, Quota: quota, Now: time.Now,
 	})
 	session, err := service.CreateSession(ctx, userID, chat.CreateSessionCommand{
 		ScopeType: chat.ScopeSingleLibrary, LibraryID: &libraryID, Title: "公开库问答",
@@ -108,12 +117,12 @@ func assertPublicLibraryCanAnswer(t *testing.T, ctx context.Context, pool *pgxpo
 	}
 }
 
-func assertIndexQuotaStopsEmbedding(t *testing.T, ctx context.Context, quota *usage.Service, userID, libraryID uuid.UUID) {
+func assertIndexQuotaStopsEmbedding(t *testing.T, ctx context.Context, quota *usageservice.Service, userID, libraryID uuid.UUID) {
 	t.Helper()
 	embedder := &embedderRecorder{}
 	vectors := &vectorRecorder{}
-	processor := indexing.NewProcessor(indexing.ProcessorDependencies{
-		Sources: sourceLoader{source: indexing.IndexSource{
+	processor := indexingservice.NewProcessor(indexingservice.ProcessorDependencies{
+		Sources: sourceLoader{source: indexingservice.IndexSource{
 			OwnerUserID: userID, LibraryID: libraryID, DocumentID: uuid.New(), ContentVersionID: uuid.New(),
 			Content: "需要向量化的内容", SourceName: "quota.md", Visibility: "private",
 			Settings: library.RetrievalSettings{ChunkSize: 800, ChunkOverlap: 100},
@@ -126,11 +135,11 @@ func assertIndexQuotaStopsEmbedding(t *testing.T, ctx context.Context, quota *us
 	}
 }
 
-func assertChatQuotaStopsModel(t *testing.T, ctx context.Context, pool *pgxpool.Pool, quota *usage.Service, userID, libraryID uuid.UUID) {
+func assertChatQuotaStopsModel(t *testing.T, ctx context.Context, pool *pgxpool.Pool, quota *usageservice.Service, userID, libraryID uuid.UUID) {
 	t.Helper()
 	engine := &chatEngine{}
-	service := chat.NewService(chat.ServiceDependencies{
-		Repository: chat.NewPostgresRepository(pool), Engine: engine, Quota: quota, Now: time.Now,
+	service := chatservice.NewService(chatservice.ServiceDependencies{
+		Repository: chatrepo.NewPostgresRepository(pool), Engine: engine, Quota: quota, Now: time.Now,
 	})
 	session, err := service.CreateSession(ctx, userID, chat.CreateSessionCommand{
 		ScopeType: chat.ScopeSingleLibrary, LibraryID: &libraryID, Title: "配额问答",
@@ -198,9 +207,9 @@ func (recorder *jobRecorder) ScheduleDocument(context.Context, document.JobReque
 	return uuid.New(), nil
 }
 
-type sourceLoader struct{ source indexing.IndexSource }
+type sourceLoader struct{ source indexingservice.IndexSource }
 
-func (loader sourceLoader) Load(context.Context, indexing.Job) (indexing.IndexSource, error) {
+func (loader sourceLoader) Load(context.Context, indexing.Job) (indexingservice.IndexSource, error) {
 	return loader.source, nil
 }
 
