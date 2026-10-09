@@ -6,8 +6,10 @@ function defaultStorage() {
 
 function createAuthSession(options = {}) {
   const storage = options.storage || defaultStorage()
+  // access token 只放内存，降低本地缓存被导出后直接访问接口的风险。
   let accessToken = ''
   let currentUser = null
+  // 多个页面同时遇到 401 时共享一次刷新，避免 refresh token 被并发轮换后互相失效。
   let refreshPromise = null
 
   function clear() {
@@ -25,6 +27,7 @@ function createAuthSession(options = {}) {
 
   async function login(profile = {}) {
     if (!options.login || !options.exchange) throw new Error('微信登录尚未配置')
+    // wx.login 只产生短期 code，真正的账号识别和令牌签发必须由 Go 网关完成。
     const loginResult = await options.login()
     if (!loginResult?.code) throw new Error('未获取到微信登录 code')
     return accept(await options.exchange({ ...profile, code: loginResult.code }))
@@ -45,6 +48,7 @@ function createAuthSession(options = {}) {
   }
 
   async function restore(profile = {}) {
+    // 优先用长期 refresh token 恢复；失效后再走微信登录，用户无需手动处理会话过期。
     if (storage.getStorageSync?.(REFRESH_TOKEN_KEY)) {
       try { return await refresh() } catch (_) { clear() }
     }
@@ -72,6 +76,7 @@ function createAuthSession(options = {}) {
 }
 
 function parseWebLoginPayload(payload = '') {
+  // 只接受自有协议，防止普通网页二维码被误当成登录票据提交给后端。
   const prefix = 'personknow://web-login?'
   if (!String(payload).startsWith(prefix)) throw new Error('无效的 Web 登录二维码')
   const values = {}

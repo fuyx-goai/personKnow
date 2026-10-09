@@ -114,10 +114,11 @@ go run ./cmd/migrate status
 go run ./cmd/gateway
 ```
 
-网关会同时启动 HTTP 服务和异步索引 Worker。浏览器打开 `http://127.0.0.1:8080`，健康检查为 `GET /api/health`，完整业务 API 位于 `/api/v1`。
+网关会同时启动 HTTP 服务和异步索引 Worker。浏览器打开 `http://127.0.0.1:8080`，健康检查为 `GET /api/health`，完整业务 API 位于 `/api/v1`。小程序联调前还应访问 `GET /api/v1/status`，确认当前端口不是仅包含旧接口的历史进程。
 
 ```bash
 curl --fail http://127.0.0.1:8080/api/health
+curl --fail http://127.0.0.1:8080/api/v1/status
 ```
 
 ### 5. 启动 Web 开发模式

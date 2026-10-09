@@ -1,6 +1,7 @@
 package router
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,36 @@ import (
 
 	"knowledge-base/internal/platform/httpx"
 )
+
+func TestV1StatusReportsMiniProgramCapabilitiesWithoutAuthentication(t *testing.T) {
+	engine := New(nil, V1Handlers{Verifier: rejectingVerifier{}})
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Version      string   `json:"version"`
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal("decode status response:", err)
+	}
+	if response.Version != "v1" || len(response.Capabilities) == 0 {
+		t.Fatalf("unexpected status response: %+v", response)
+	}
+}
+
+func TestV1WechatLoginRouteIsRegistered(t *testing.T) {
+	engine := New(nil, V1Handlers{Verifier: rejectingVerifier{}})
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/wechat/login", nil)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("login route is not registered: status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
 
 type rejectingVerifier struct{}
 

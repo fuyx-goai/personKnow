@@ -24,13 +24,26 @@
 
 - 在微信公众平台分别配置 `request`、`uploadFile`、`downloadFile` HTTPS 合法域名；
 - 生产环境必须使用 HTTPS；
-- 确认网关可访问 `/api/health`、`/api/config` 与 `/api/v1/*`；
+- 确认网关可访问 `/api/health`、`/api/config` 与 `/api/v1/status`；
 - 配置微信登录所需的 AppID、AppSecret 与网关合法域名；
 - 反向代理需关闭 SSE 缓冲并允许长连接，否则流式问答会退化为一次性返回；
 - 将 `project.config.json` 中的 `urlCheck` 恢复为 `true`；
 - 使用真实小程序 AppID 重新编译，并真机验证登录、七类文件上传、问答引用、Web 扫码确认和退出登录。
 
 微信私有项目配置必须放在 `project.private.config.json`，该文件已被 Git 忽略，禁止提交 AppSecret 或其他凭证。
+
+## 接口联调与日志
+
+启动小程序前先验证当前运行的是包含全栈接口的最新 Go 网关：
+
+```bash
+curl http://127.0.0.1:8080/api/health
+curl http://127.0.0.1:8080/api/v1/status
+```
+
+第二个请求应返回 `version: v1` 和 `miniprogram` capability。如果返回纯文本 `404 page not found`，说明端口上仍是旧二进制；停止旧的 GoLand/终端进程，再从当前分支执行 `go run ./cmd/gateway`。仅 `/api/health` 成功不能证明账号、知识库等 v1 接口已经加载。
+
+微信开发者工具 Console 会输出 `[miniprogram-api]` 日志，包括请求方法、接口路径、状态码、耗时和 `request_id`。日志不会记录 access token、refresh token、微信 code 或请求正文；后端对应访问日志写入 `logs/app.log`，可用同一 `request_id` 串联排查。
 
 ## 验证命令
 

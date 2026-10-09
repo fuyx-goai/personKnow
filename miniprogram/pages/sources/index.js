@@ -37,6 +37,7 @@ Page({
   async refresh() {
     this.setData({ loading: true, error: '' })
     try {
+      // 同时获取知识库权限和文档列表，展示层据此禁止编辑公开只读资料。
       await app.ensureReady()
       const [libraries, result] = await Promise.all([api.libraries({ limit: 100 }), api.documents({ limit: 100 })])
       const libraryOptions = [{ id: '', name: '全部知识库', access: 'owner' }]
@@ -96,6 +97,7 @@ Page({
   async waitForJob(jobID) {
     if (!jobID) return
     try {
+      // 上传、编辑和重建索引都是异步任务；轮询终态后再刷新列表，避免展示过期状态。
       const job = await api.pollIndexJob(() => api.indexJob(jobID))
       wx.showToast({ title: job.status === 'ready' ? '索引已完成' : '索引失败', icon: 'none' })
       await this.refresh()

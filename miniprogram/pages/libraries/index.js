@@ -35,6 +35,7 @@ Page({
   async refresh() {
     this.setData({ loading: true, error: '' })
     try {
+      // 知识库接口受账号鉴权保护，统一等待 App 完成登录和核心状态恢复。
       await app.ensureReady()
       const result = await api.libraries({ limit: 100 })
       const owned = (result.owned || []).map((item, index) => displayLibrary(item, index, false))

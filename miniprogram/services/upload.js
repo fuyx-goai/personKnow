@@ -1,4 +1,4 @@
-const { ApiError } = require('./api')
+const { ApiError, buildURL, logAPI } = require('./api')
 
 function wxUploadFile(options) {
   return new Promise((resolve, reject) => {
@@ -7,6 +7,7 @@ function wxUploadFile(options) {
 }
 
 function parsePayload(data) {
+  // wx.uploadFile 的响应通常是字符串，与 wx.request 的对象响应不同，需要在边界统一解析。
   if (typeof data !== 'string') return data || {}
   try { return JSON.parse(data) } catch (_) { return { message: data } }
 }
@@ -15,18 +16,27 @@ function createUploader(options = {}) {
   const uploadFile = options.uploadFile || wxUploadFile
   const baseUrl = options.baseUrl || (() => getApp().globalData.apiBaseUrl)
   const auth = options.auth
+  const logger = options.logger || console
 
   async function uploadDocument(filePath, libraryID, filename, retried = false) {
-    const response = await uploadFile({
-      url: `${baseUrl()}/api/v1/documents`,
-      filePath,
-      name: 'file',
-      formData: { library_id: libraryID },
-      header: { Authorization: `Bearer ${auth?.accessToken?.() || ''}` },
-      timeout: 120000,
-      ...(filename ? { filename } : {}),
-    })
+    const path = '/api/v1/documents'
+    const startedAt = Date.now()
+    logAPI(logger, 'upload_started', { method: 'POST', path, retried })
+    let response
+    try {
+      response = await uploadFile({
+        url: buildURL(baseUrl(), path), filePath, name: 'file',
+        formData: { library_id: libraryID },
+        header: { Authorization: `Bearer ${auth?.accessToken?.() || ''}` },
+        timeout: 120000, ...(filename ? { filename } : {}),
+      })
+    } catch (error) {
+      logAPI(logger, 'upload_failed', { method: 'POST', path, duration_ms: Date.now() - startedAt, error: error.errMsg || error.message || String(error) })
+      throw error
+    }
+    logAPI(logger, 'upload_finished', { method: 'POST', path, status_code: response.statusCode, duration_ms: Date.now() - startedAt })
     const payload = parsePayload(response.data)
+    // refresh token 会在服务端轮换，因此上传鉴权失败时最多刷新并重放一次。
     if (response.statusCode === 401 && auth?.refresh && !retried) {
       await auth.refresh()
       return uploadDocument(filePath, libraryID, filename, true)

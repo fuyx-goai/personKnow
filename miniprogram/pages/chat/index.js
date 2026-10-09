@@ -37,6 +37,7 @@ Page({
   async refreshData() {
     this.setData({ loading: true, error: '' })
     try {
+      // 页面请求必须等待全局登录完成，否则会用空 token 触发无意义的 401 与刷新竞争。
       await app.ensureReady()
       const [libraryResult, sessionResult] = await Promise.all([api.libraries({ limit: 100 }), api.chatSessions()])
       const libraries = [{ id: '', name: '全域专属知识库（混合检索）' }]
@@ -103,6 +104,7 @@ Page({
   },
 
   startStream(sessionID, question, answerIndex) {
+    // 流式回调只增量更新当前回答，避免每个分片都重新请求完整会话历史。
     this.requestTask = api.askStream(sessionID, question, {
       onDelta: (delta) => this.appendDelta(answerIndex, delta),
       onReference: (reference) => this.appendReference(answerIndex, reference),

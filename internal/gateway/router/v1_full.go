@@ -26,6 +26,13 @@ type V1Handlers struct {
 
 func registerV1(engine *gin.Engine, handlers V1Handlers) {
 	v1 := engine.Group("/api/v1")
+	// 小程序启动时先探测该接口，避免把只支持旧 /api 路由的进程误判为在线。
+	v1.GET("/status", func(context *gin.Context) {
+		context.JSON(http.StatusOK, gin.H{
+			"version":      "v1",
+			"capabilities": []string{"wechat_login", "libraries", "documents", "index_jobs", "chat_stream", "usage", "audit_logs", "miniprogram"},
+		})
+	})
 	registerPublicAuth(v1, handlers.Account)
 	authenticated := v1.Group("")
 	authenticated.Use(httpx.Auth(handlers.Verifier))

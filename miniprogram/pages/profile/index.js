@@ -26,6 +26,7 @@ Page({
   async refresh() {
     this.setData({ loading: true, error: '' })
     try {
+      // 账号、用量、会话和审计日志来自同一登录态，先恢复会话再并行加载可减少等待时间。
       await app.ensureReady()
       const [user, usage, libraries, sessions, auditResult, config] = await Promise.all([
         api.me(), api.usageSummary(), api.libraries({ limit: 100 }),
@@ -69,6 +70,7 @@ Page({
   onReranker(event) { this.setData({ reranker: event.detail.value }) },
 
   async saveSettings() {
+    // 检索参数保存后由后端判断是否需要重建索引，页面只展示服务端给出的结果。
     const library = this.data.ownerLibraries[this.data.libraryIndex]
     if (!library) return
     this.setData({ saving: true })
