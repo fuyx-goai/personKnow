@@ -86,6 +86,23 @@ test('启动探针访问公开的全栈状态接口', async () => {
   assert.equal(result.capabilities.includes('miniprogram'), true)
 })
 
+test('独立模式状态会提示先配置 PostgreSQL', async () => {
+  const client = createAPIClient({
+    baseUrl: () => 'http://127.0.0.1:8080',
+    logger: silentLogger,
+    transport: async () => ({
+      statusCode: 200,
+      data: { version: 'v1', mode: 'standalone', capabilities: ['rag', 'memory_vector'] },
+    }),
+  })
+
+  await assert.rejects(() => client.requireMiniProgram(), (error) => {
+    assert.equal(error.code, 'FULLSTACK_DISABLED')
+    assert.match(error.message, /PostgreSQL/)
+    return true
+  })
+})
+
 test('旧网关返回纯文本 404 时提示重启最新后端', async () => {
   const authAPI = createAuthAPI({
     baseUrl: () => 'http://127.0.0.1:8080',

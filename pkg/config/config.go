@@ -3,7 +3,7 @@
 // 位于 pkg/ 下，属于"与业务无关、可被复用"的基础包：
 // 各层（repo / gateway）都只依赖它暴露的 Config 结构体，不各自读文件。
 //
-// 所有配置项都写在 configs/config.yaml 里，本文件只负责
+// 所有配置项都写在 CONFIG_FILE 指向的 YAML 里，本文件只负责
 // "读文件 → 补默认值 → 打印自检信息"，改配置无需改动任何 Go 代码。
 //
 // 配置文件路径规则：
@@ -187,7 +187,11 @@ func (c Config) Describe() string {
 		store = fmt.Sprintf("milvus(%s, collection=%s, dim=%d, metric=%s)",
 			c.Milvus.Address, c.Milvus.Collection, c.Milvus.Dim, c.Milvus.Metric)
 	}
-	return fmt.Sprintf("服务配置 | 监听=%s | 向量库=%s\n%s", c.HTTPAddr, store, c.LLM.Describe())
+	mode := "standalone"
+	if c.DatabaseEnabled() {
+		mode = "fullstack"
+	}
+	return fmt.Sprintf("服务配置 | 模式=%s | 监听=%s | 向量库=%s\n%s", mode, c.HTTPAddr, store, c.LLM.Describe())
 }
 
 // Describe 生成一行"大模型配置"信息（API Key 打码）

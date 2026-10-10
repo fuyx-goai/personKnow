@@ -11,21 +11,24 @@
 
 ## 2. 配置
 
-复制 `configs/config.example.yaml` 为私有配置文件，并通过 `CONFIG_FILE` 指向它。以下敏感值仅通过环境变量提供：
+复制 `configs/config.example.yaml` 为私有配置文件，并通过 `CONFIG_FILE` 指向它。数据库、认证、模型、存储、Worker 和日志参数均写入该 YAML：
 
-```bash
-export CONFIG_FILE=/srv/personknow/configs/config.local.yaml
-export DATABASE_URL='postgres://personknow:password@postgres:5432/personknow?sslmode=require'
-export JWT_SECRET='至少32字符的独立随机值'
-export IDENTITY_SECRET='至少32字符的独立随机值'
-export WECHAT_APP_ID='wx...'
-export WECHAT_APP_SECRET='...'
-export LLM_API_KEY='...'
-# vector_store=milvus 时再配置
-export MILVUS_PASSWORD='...'
+```yaml
+vector_store: mem
+database:
+  url: "postgres://personknow:password@postgres:5432/personknow?sslmode=require"
+auth:
+  jwt_secret: "至少32字符的独立随机值"
+  identity_secret: "至少32字符的独立随机值"
+  wechat_app_id: "wx..."
+  wechat_app_secret: "..."
+storage:
+  data_dir: "/srv/personknow/data"
+llm:
+  api_key: "..."
 ```
 
-可选运行参数：`DATA_DIR`、`ACCESS_TOKEN_TTL`、`REFRESH_TOKEN_TTL`、`WORKER_LEASE`、`WORKER_POLL`。不要把真实密钥写入 YAML、Git 或启动日志。
+`CONFIG_FILE` 仅选择配置文件。私有 YAML 必须设为 `0640` 或更严格权限，不得提交到 Git，也不得在启动日志中打印密钥。
 
 ## 3. 目录与权限
 
@@ -37,7 +40,7 @@ install -d -m 0750 -o personknow -g personknow /srv/personknow/backups
 
 应用用户需要：
 
-- `DATA_DIR` 的读写权限，用于原文件与内容版本；
+- `storage.data_dir` 指向目录的读写权限，用于原文件与内容版本；
 - `log.dir` 的读写权限；
 - 旧数据迁移时对 `--source` 的读写权限和 `--backup-dir` 的写权限；
 - PostgreSQL schema 的 DDL/DML 权限。
@@ -47,9 +50,9 @@ install -d -m 0750 -o personknow -g personknow /srv/personknow/backups
 ```bash
 go build -o bin/personknow ./cmd/gateway
 go build -o bin/personknow-migrate ./cmd/migrate
-bin/personknow-migrate up
-bin/personknow-migrate status
-bin/personknow
+CONFIG_FILE=configs/config.local.yaml bin/personknow-migrate up
+CONFIG_FILE=configs/config.local.yaml bin/personknow-migrate status
+CONFIG_FILE=configs/config.local.yaml bin/personknow
 ```
 
 `cmd/gateway` 启动时也会检查 migration，但生产发布仍应先显式执行 `up`。建议由 systemd、容器编排器或进程守护工具管理，并设置 15 秒以上优雅停止时间。
@@ -100,15 +103,15 @@ bin/personknow-migrate legacy \
 
 ## 9. 备份与恢复
 
-备份范围：PostgreSQL、`DATA_DIR`、Mem 模式的 `knowledge.json` 或 Milvus collection、私有配置的安全副本。数据库与文件目录应在同一维护窗口生成快照。
+备份范围：PostgreSQL、`storage.data_dir` 指向的目录、Mem 模式的 `knowledge.json` 或 Milvus collection、私有配置的安全副本。数据库与文件目录应在同一维护窗口生成快照。
 
 恢复顺序：
 
 1. 停止网关与 Worker；
 2. 恢复 PostgreSQL；
-3. 恢复 `DATA_DIR` 与向量数据；
+3. 恢复 `storage.data_dir` 指向的目录与向量数据；
 4. 运行 `personknow-migrate status`，必要时执行 `up`；
 5. 启动服务并检查 `/api/health`；
 6. 抽查登录、知识库列表、文档内容、问答引用、用量与审计日志。
 
-迁移回滚时先停服务，再恢复命令生成的 `knowledge.json.*.bak`、数据库快照和 `DATA_DIR` 快照，避免只回滚其中一项造成版本不一致。
+迁移回滚时先停服务，再恢复命令生成的 `knowledge.json.*.bak`、数据库快照和 `storage.data_dir` 快照，避免只回滚其中一项造成版本不一致。

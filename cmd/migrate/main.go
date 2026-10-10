@@ -53,7 +53,7 @@ func run(ctx context.Context, args []string) error {
 		return err
 	}
 	if cfg.Database.URL == "" {
-		return fmt.Errorf("DATABASE_URL 不能为空")
+		return fmt.Errorf("配置文件 database.url 不能为空")
 	}
 	pool, err := platformpostgres.Open(ctx, cfg.Database)
 	if err != nil {

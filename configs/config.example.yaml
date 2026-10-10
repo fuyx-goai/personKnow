@@ -2,7 +2,17 @@ http_addr: ":8080"
 vector_store: mem
 
 database:
+  # 留空即以 standalone 模式启动，不连接 PostgreSQL。
+  url: ""
   max_conns: 10
+
+auth:
+  jwt_secret: ""
+  identity_secret: ""
+  access_ttl: "15m"
+  refresh_ttl: "720h"
+  wechat_app_id: ""
+  wechat_app_secret: ""
 
 storage:
   data_dir: data
@@ -10,6 +20,8 @@ storage:
 
 worker:
   concurrency: 2
+  lease: "5m"
+  poll: "1s"
 
 log:
   dir: logs
@@ -17,6 +29,7 @@ log:
   retain_days: 30
 
 llm:
+  api_key: ""
   base_url: "https://ark.cn-beijing.volces.com/api/v3"
   chat_model: "doubao-seed-2-1-lite-260915"
   embed_model: "doubao-embedding-vision-251215"
@@ -25,11 +38,8 @@ llm:
 milvus:
   address: "127.0.0.1:19530"
   username: "root"
+  password: ""
   db_name: "default"
   collection: "eino_knowledge"
   dim: 2048
   metric: "COSINE"
-
-# 敏感配置只通过环境变量提供：
-# DATABASE_URL、JWT_SECRET、IDENTITY_SECRET、WECHAT_APP_ID、WECHAT_APP_SECRET、
-# LLM_API_KEY、MILVUS_PASSWORD。

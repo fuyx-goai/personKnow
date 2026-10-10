@@ -71,6 +71,28 @@ func TestHTTPEndpoints(t *testing.T) {
 	assertChunkEndpoints(t, engine)
 }
 
+func TestBuildRuntimeWithoutDatabaseStartsStandaloneGateway(t *testing.T) {
+	ctx := context.Background()
+	t.Chdir(t.TempDir())
+	cfg := config.Config{
+		HTTPAddr: ":0", VectorStore: config.StoreMem,
+		LLM: config.LLMConfig{APIKey: "test-key", BaseURL: "https://example.com/v1", ChatModel: "chat", EmbedModel: "embed"},
+		Log: config.LogConfig{Dir: t.TempDir(), MaxSizeMB: 1, RetainDays: 1},
+	}
+	runtime, err := buildRuntime(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	if runtime.pool != nil || runtime.worker != nil {
+		t.Fatal("standalone runtime must not initialize PostgreSQL or index worker")
+	}
+	recorder := doRequest(t, runtime.server.Handler, http.MethodGet, "/api/v1/status", "")
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "standalone") {
+		t.Fatalf("unexpected status: code=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func assertStreamingEndpoint(t *testing.T, engine http.Handler) {
 	t.Helper()
 	recorder := doRequest(t, engine, http.MethodPost, "/api/chat/stream", `{"question":"goroutine 是什么"}`)

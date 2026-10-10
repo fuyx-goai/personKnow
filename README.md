@@ -42,13 +42,13 @@ internal/
 | 依赖 | 版本/要求 | 用途 |
 | --- | --- | --- |
 | Go | 1.24.1 或兼容的 1.24.x | 编译、运行 API 与索引 Worker |
-| PostgreSQL | 15+，可创建 `pg_trgm` 扩展 | 账号、知识库、文档、问答、用量和审计数据 |
+| PostgreSQL | 15+，可选 | 完整模式下保存账号、知识库、文档、问答、用量和审计数据 |
 | Node.js | 20+ | Web 开发、测试和重新构建；只运行已构建二进制时不需要 |
 | npm | 使用仓库内 `package-lock.json` | 安装锁定的 Web 依赖 |
 | Milvus | 2.4，可选 | 生产级向量检索；本地默认使用 `mem` |
 | 微信开发者工具 | 当前稳定版 | 小程序预览、真机调试和发布 |
 
-推荐在 macOS/Linux 开发。Windows 可使用 WSL2，并确保 Go、Node.js 和 PostgreSQL 均可从终端访问。
+推荐在 macOS/Linux 开发。Windows 可使用 WSL2；独立模式只要求 Go，完整模式再准备 PostgreSQL。
 
 ## 本地启动
 
@@ -59,69 +59,52 @@ git clone https://github.com/fuyx-goai/personKnow.git
 cd personKnow
 go version
 node --version
-psql --version
 ```
 
-### 2. 准备 PostgreSQL
+### 2. 准备配置文件
 
-可复用已有 PostgreSQL 并创建数据库，随后把 `DATABASE_URL` 中的账号、密码改为实际值：
-
-```bash
-createdb personknow
-```
-
-也可以用 Docker 启动本地 PostgreSQL 16：
-
-```bash
-docker run --name personknow-postgres \
-  -e POSTGRES_USER=personknow \
-  -e POSTGRES_PASSWORD=personknow \
-  -e POSTGRES_DB=personknow \
-  -p 5432:5432 \
-  -d postgres:16
-```
-
-首次 migration 会创建 `pg_trgm` 扩展，因此数据库账号需要相应权限。
-
-### 3. 准备私有配置
-
-复制示例配置。`configs/config.local.yaml` 已被 Git 忽略：
+复制示例配置。`configs/config.local.yaml` 已被 Git 忽略，所有运行参数均从该 YAML 读取：
 
 ```bash
 cp configs/config.example.yaml configs/config.local.yaml
 ```
 
-敏感值只通过环境变量注入，不要写入 YAML、源码、日志或提交记录：
+当前先使用独立模式，只需填写 `llm.api_key`，并保持以下配置：
 
-```bash
-export CONFIG_FILE=configs/config.local.yaml
-export DATABASE_URL='postgres://personknow:personknow@127.0.0.1:5432/personknow?sslmode=disable'
-export JWT_SECRET='替换为至少32字符的独立随机值'
-export IDENTITY_SECRET='替换为另一个至少32字符的独立随机值'
-export WECHAT_APP_ID='wx...'
-export WECHAT_APP_SECRET='...'
-export LLM_API_KEY='...'
+```yaml
+vector_store: mem
+database:
+  url: ""
+llm:
+  api_key: "你的方舟 API Key"
 ```
 
-可选环境变量包括 `DATA_DIR`、`ACCESS_TOKEN_TTL`、`REFRESH_TOKEN_TTL`、`WORKER_LEASE`、`WORKER_POLL` 和 `MILVUS_PASSWORD`。
+此时网关不连接 PostgreSQL，也不启动索引 Worker；可使用 `/api` 下的基础摄入、内存向量检索与问答能力。账号、多知识库、文件任务、用量和审计接口需要 PostgreSQL，独立模式下不会启用。
 
-### 4. 初始化并启动后端
+需要完整模式时，再启动 PostgreSQL，将连接串写入 `database.url`，并填写 `auth` 段。首次 migration 会创建 `pg_trgm` 扩展，因此数据库账号需要相应权限。
+
+### 3. 启动后端
 
 ```bash
 go mod download
-go run ./cmd/migrate up
-go run ./cmd/migrate status
-go run ./cmd/gateway
+CONFIG_FILE=configs/config.local.yaml go run ./cmd/gateway
 ```
 
-网关会同时启动 HTTP 服务和异步索引 Worker。浏览器打开 `http://127.0.0.1:8080`，健康检查为 `GET /api/health`，完整业务 API 位于 `/api/v1`。小程序联调前还应访问 `GET /api/v1/status`，确认当前端口不是仅包含旧接口的历史进程。
+`CONFIG_FILE` 只负责选择配置文件，不覆盖其中的业务配置。浏览器打开 `http://127.0.0.1:8080`，并检查运行模式：
 
 ```bash
 curl --fail http://127.0.0.1:8080/api/health
 curl --fail http://127.0.0.1:8080/api/v1/status
 ```
 
-### 5. 启动 Web 开发模式
+无数据库时状态返回 `mode: standalone`；配置数据库后返回 `mode: fullstack` 和 `miniprogram` capability。完整模式还需先执行：
+
+```bash
+CONFIG_FILE=configs/config.local.yaml go run ./cmd/migrate up
+CONFIG_FILE=configs/config.local.yaml go run ./cmd/migrate status
+```
+
+### 4. 启动 Web 开发模式
 
 另开终端，保留 Go 网关运行：
 
@@ -133,15 +116,15 @@ npm run dev
 
 访问 `http://127.0.0.1:5173`。Vite 会把 `/api` 请求代理到 `http://127.0.0.1:8080`。
 
-### 6. 启动微信小程序
+### 5. 启动微信小程序
 
 1. 用微信开发者工具导入 `miniprogram` 目录；
-2. 本地预览可使用测试 AppID，登录联调需要真实 AppID/AppSecret；
+2. 小程序完整联调需要 PostgreSQL，并在配置文件 `auth` 段填写真实 AppID/AppSecret；
 3. 开发阶段可关闭合法域名校验；
 4. 在“我的空间”把服务地址改为网关地址；
 5. 真机不能使用 `127.0.0.1`，需填写手机可访问的局域网地址或 HTTPS 域名。
 
-详细说明见 [miniprogram/README.md](miniprogram/README.md)。
+详细说明见 [miniprogram/README.md](miniprogram/README.md)。第一次接入微信登录，建议按 [微信小程序登录教程](docs/wechat-miniprogram-login-tutorial.md) 逐步操作。
 
 ## 前端开发
 
@@ -169,7 +152,7 @@ tail -f logs/app.log
 
 ## 线上部署
 
-以下示例使用 `/srv/personknow`、systemd 和 Nginx；容器平台可使用同样的构建、migration、环境变量与健康检查顺序。
+以下示例使用 `/srv/personknow`、systemd 和 Nginx；容器平台可使用同样的构建、migration、配置文件与健康检查顺序。
 
 ### 1. 构建发布产物
 
@@ -209,30 +192,31 @@ sudo install -m 0755 bin/personknow-migrate /srv/personknow/bin/personknow-migra
 sudo install -m 0640 -o personknow -g personknow configs/config.example.yaml /srv/personknow/configs/config.local.yaml
 ```
 
-把敏感环境变量保存到仅部署账号和 `personknow` 服务账号可读的 `/etc/personknow.env`，权限设为 `0600`。生产数据库连接建议启用 TLS：
+编辑 `/srv/personknow/configs/config.local.yaml`，将数据库、认证、模型、存储、Worker 与日志参数都写在该文件中。该文件包含密钥，保持 `0640` 且禁止提交；生产数据库连接建议启用 TLS：
 
-```bash
-CONFIG_FILE=/srv/personknow/configs/config.local.yaml
-DATABASE_URL=postgres://personknow:password@postgres:5432/personknow?sslmode=require
-JWT_SECRET=替换为至少32字符的独立随机值
-IDENTITY_SECRET=替换为另一个至少32字符的独立随机值
-WECHAT_APP_ID=wx...
-WECHAT_APP_SECRET=...
-LLM_API_KEY=...
-DATA_DIR=/srv/personknow/data
+```yaml
+vector_store: mem
+database:
+  url: "postgres://personknow:password@postgres:5432/personknow?sslmode=require"
+auth:
+  jwt_secret: "替换为至少32字符的独立随机值"
+  identity_secret: "替换为另一个至少32字符的独立随机值"
+  wechat_app_id: "wx..."
+  wechat_app_secret: "..."
+storage:
+  data_dir: "/srv/personknow/data"
+llm:
+  api_key: "..."
 ```
 
 ### 3. 执行数据库 migration
 
 ```bash
-set -a
-source /etc/personknow.env
-set +a
-/srv/personknow/bin/personknow-migrate up
-/srv/personknow/bin/personknow-migrate status
+CONFIG_FILE=/srv/personknow/configs/config.local.yaml /srv/personknow/bin/personknow-migrate up
+CONFIG_FILE=/srv/personknow/configs/config.local.yaml /srv/personknow/bin/personknow-migrate status
 ```
 
-发布时先 migration 再启动新版本；执行前应备份 PostgreSQL、`DATA_DIR` 和向量数据。
+发布时先 migration 再启动新版本；执行前应备份 PostgreSQL、`storage.data_dir` 指向的目录和向量数据。
 
 ### 4. 使用 systemd 托管
 
@@ -248,7 +232,7 @@ Type=simple
 User=personknow
 Group=personknow
 WorkingDirectory=/srv/personknow
-EnvironmentFile=/etc/personknow.env
+Environment=CONFIG_FILE=/srv/personknow/configs/config.local.yaml
 ExecStart=/srv/personknow/bin/personknow
 Restart=on-failure
 RestartSec=3

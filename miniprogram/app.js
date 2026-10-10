@@ -22,7 +22,7 @@ App({
   async bootstrap() {
     try {
       // 先检查完整 v1 网关，再调用微信登录；旧二进制会在这里给出可操作的版本提示。
-      await api.status()
+      await api.requireMiniProgram()
       const account = await api.auth.restore({ device_label: '微信小程序' })
       this.globalData.user = account.user || api.auth.user()
       this.globalData.authReady = true

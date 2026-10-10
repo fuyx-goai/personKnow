@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -22,12 +20,14 @@ type DatabaseConfig struct {
 	MaxConns int32  `yaml:"max_conns"`
 }
 
-// AuthConfig 集中保存账号认证参数；敏感字段优先由环境变量覆盖，避免写入仓库。
+// AuthConfig 集中保存账号认证参数；生产环境应把私有 YAML 权限限制为仅服务账号可读。
 type AuthConfig struct {
 	JWTSecret      string        `yaml:"jwt_secret"`
 	IdentitySecret string        `yaml:"identity_secret"`
 	AccessTTL      time.Duration `yaml:"-"`
 	RefreshTTL     time.Duration `yaml:"-"`
+	AccessTTLText  string        `yaml:"access_ttl"`
+	RefreshTTLText string        `yaml:"refresh_ttl"`
 	WeChatAppID    string        `yaml:"wechat_app_id"`
 	WeChatSecret   string        `yaml:"wechat_app_secret"`
 }
@@ -43,6 +43,8 @@ type WorkerConfig struct {
 	Concurrency int           `yaml:"concurrency"`
 	Lease       time.Duration `yaml:"-"`
 	Poll        time.Duration `yaml:"-"`
+	LeaseText   string        `yaml:"lease"`
+	PollText    string        `yaml:"poll"`
 }
 
 // LogConfig 定义结构化日志的目录、滚动阈值和保留周期。
@@ -52,22 +54,22 @@ type LogConfig struct {
 	RetainDays int    `yaml:"retain_days"`
 }
 
-// applyRuntimeDefaults 先读取环境变量，再补齐安全的运行默认值。
-// 这样本地可使用 YAML，而生产密钥无需进入配置文件或版本库。
+// applyRuntimeDefaults 将 YAML 字段转换成运行时类型，并补齐非敏感默认值。
+// 除 CONFIG_FILE 仅负责选择文件外，业务配置不再被环境变量隐式覆盖。
 func (c *Config) applyRuntimeDefaults() {
-	c.Database.URL = envOr("DATABASE_URL", c.Database.URL)
+	c.Database.URL = strings.TrimSpace(c.Database.URL)
 	if c.Database.MaxConns <= 0 {
 		c.Database.MaxConns = defaultDatabaseMaxConns
 	}
 
-	c.Auth.JWTSecret = envOr("JWT_SECRET", c.Auth.JWTSecret)
-	c.Auth.IdentitySecret = envOr("IDENTITY_SECRET", c.Auth.IdentitySecret)
-	c.Auth.WeChatAppID = envOr("WECHAT_APP_ID", c.Auth.WeChatAppID)
-	c.Auth.WeChatSecret = envOr("WECHAT_APP_SECRET", c.Auth.WeChatSecret)
-	c.Auth.AccessTTL = durationEnv("ACCESS_TOKEN_TTL", 15*time.Minute)
-	c.Auth.RefreshTTL = durationEnv("REFRESH_TOKEN_TTL", 30*24*time.Hour)
+	c.Auth.JWTSecret = strings.TrimSpace(c.Auth.JWTSecret)
+	c.Auth.IdentitySecret = strings.TrimSpace(c.Auth.IdentitySecret)
+	c.Auth.WeChatAppID = strings.TrimSpace(c.Auth.WeChatAppID)
+	c.Auth.WeChatSecret = strings.TrimSpace(c.Auth.WeChatSecret)
+	c.Auth.AccessTTL = parseDuration(c.Auth.AccessTTLText, 15*time.Minute)
+	c.Auth.RefreshTTL = parseDuration(c.Auth.RefreshTTLText, 30*24*time.Hour)
 
-	c.Storage.DataDir = envOr("DATA_DIR", pick(c.Storage.DataDir, "data"))
+	c.Storage.DataDir = pick(c.Storage.DataDir, "data")
 	if c.Storage.MaxFileBytes <= 0 {
 		c.Storage.MaxFileBytes = defaultMaxFileBytes
 	}
@@ -75,8 +77,8 @@ func (c *Config) applyRuntimeDefaults() {
 	if c.Worker.Concurrency <= 0 {
 		c.Worker.Concurrency = defaultWorkerConcurrency
 	}
-	c.Worker.Lease = durationEnv("WORKER_LEASE", 5*time.Minute)
-	c.Worker.Poll = durationEnv("WORKER_POLL", time.Second)
+	c.Worker.Lease = parseDuration(c.Worker.LeaseText, 5*time.Minute)
+	c.Worker.Poll = parseDuration(c.Worker.PollText, time.Second)
 
 	c.Log.Dir = pick(c.Log.Dir, "logs")
 	if c.Log.MaxSizeMB <= 0 {
@@ -86,36 +88,38 @@ func (c *Config) applyRuntimeDefaults() {
 		c.Log.RetainDays = defaultLogRetainDays
 	}
 
-	c.LLM.APIKey = envOr("LLM_API_KEY", c.LLM.APIKey)
-	c.Milvus.Password = envOr("MILVUS_PASSWORD", c.Milvus.Password)
 }
 
 // Validate 在创建外部连接前检查启动所需的关键配置，尽早返回可读错误。
 func (c Config) Validate() error {
-	if strings.TrimSpace(c.Database.URL) == "" {
-		return fmt.Errorf("DATABASE_URL 不能为空")
+	if c.VectorStore != StoreMem && c.VectorStore != StoreMilvus {
+		return fmt.Errorf("vector_store 仅支持 %q 或 %q", StoreMem, StoreMilvus)
+	}
+	if strings.TrimSpace(c.LLM.APIKey) == "" {
+		return fmt.Errorf("llm.api_key 不能为空")
+	}
+	if !c.DatabaseEnabled() {
+		return nil
 	}
 	if len(c.Auth.JWTSecret) < 32 {
-		return fmt.Errorf("JWT_SECRET 至少需要 32 个字符")
+		return fmt.Errorf("auth.jwt_secret 至少需要 32 个字符")
 	}
 	if len(c.Auth.IdentitySecret) < 32 {
-		return fmt.Errorf("IDENTITY_SECRET 至少需要 32 个字符")
+		return fmt.Errorf("auth.identity_secret 至少需要 32 个字符")
 	}
 	if c.Auth.WeChatAppID == "" || c.Auth.WeChatSecret == "" {
-		return fmt.Errorf("微信 AppID 和密钥不能为空")
+		return fmt.Errorf("auth.wechat_app_id 和 auth.wechat_app_secret 不能为空")
 	}
 	return nil
 }
 
-func envOr(name, fallback string) string {
-	if value := strings.TrimSpace(os.Getenv(name)); value != "" {
-		return value
-	}
-	return strings.TrimSpace(fallback)
+// DatabaseEnabled 表示是否启用依赖 PostgreSQL 的账号、多知识库和审计能力。
+func (c Config) DatabaseEnabled() bool {
+	return strings.TrimSpace(c.Database.URL) != ""
 }
 
-func durationEnv(name string, fallback time.Duration) time.Duration {
-	value := strings.TrimSpace(os.Getenv(name))
+func parseDuration(value string, fallback time.Duration) time.Duration {
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return fallback
 	}
@@ -124,13 +128,4 @@ func durationEnv(name string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
-}
-
-// intEnv 对无效或非正整数使用回退值，防止错误配置导致零并发等异常状态。
-func intEnv(name string, fallback int) int {
-	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(name)))
-	if err != nil || value <= 0 {
-		return fallback
-	}
-	return value
 }

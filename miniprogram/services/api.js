@@ -55,10 +55,20 @@ function queryString(values = {}) {
 }
 
 function createEndpoints(request, auth) {
+  // 小程序依赖账号与多知识库接口，启动时先确认后端已启用 PostgreSQL 完整模式。
+  async function requireMiniProgram() {
+    const status = await request('/api/v1/status', { skipRefresh: true })
+    if (!(status.capabilities || []).includes('miniprogram')) {
+      throw new ApiError({ code: 'FULLSTACK_DISABLED', message: '当前为独立模式；请先在配置文件中填写 PostgreSQL database.url' }, 503)
+    }
+    return status
+  }
+
   return {
     auth, request,
     health: () => request('/api/health', { skipRefresh: true }),
     status: () => request('/api/v1/status', { skipRefresh: true }),
+    requireMiniProgram,
     config: () => request('/api/config', { skipRefresh: true }),
     me: () => request('/api/v1/me'),
     confirmWebTicket: (id, secret) => request(`/api/v1/auth/web/tickets/${id}/confirm`, { method: 'POST', data: { secret } }),

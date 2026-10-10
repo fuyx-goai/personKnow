@@ -28,6 +28,7 @@ func New(h *handler.Handler, full ...V1Handlers) *gin.Engine {
 	r.Use(httpx.RequestID(), cors(), httpx.AccessLog(slog.Default()), gin.Recovery())
 
 	registerWeb(r)
+	registerV1Status(r, len(full) > 0)
 	if h != nil {
 		registerAPI(r, h)
 	}

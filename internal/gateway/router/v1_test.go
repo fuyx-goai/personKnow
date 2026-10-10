@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"knowledge-base/internal/platform/httpx"
@@ -27,6 +28,19 @@ func TestV1StatusReportsMiniProgramCapabilitiesWithoutAuthentication(t *testing.
 	}
 	if response.Version != "v1" || len(response.Capabilities) == 0 {
 		t.Fatalf("unexpected status response: %+v", response)
+	}
+}
+
+func TestV1StatusReportsStandaloneModeWhenFullStackIsDisabled(t *testing.T) {
+	engine := New(nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "miniprogram") || !strings.Contains(recorder.Body.String(), "standalone") {
+		t.Fatalf("unexpected standalone status: %s", recorder.Body.String())
 	}
 }
 

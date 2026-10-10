@@ -53,6 +53,15 @@ func buildRuntime(ctx context.Context, cfg config.Config) (*applicationRuntime, 
 		return nil, err
 	}
 	slog.SetDefault(logger)
+	if !cfg.DatabaseEnabled() {
+		engine, err := composeStandaloneApplication(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		slog.Warn("database_disabled", "mode", "standalone", "reason", "database.url is empty")
+		server := &http.Server{Addr: cfg.HTTPAddr, Handler: engine, ReadHeaderTimeout: 10 * time.Second}
+		return &applicationRuntime{server: server, cfg: cfg}, nil
+	}
 	pool, err := platformpostgres.Open(ctx, cfg.Database)
 	if err != nil {
 		return nil, err
@@ -68,6 +77,35 @@ func buildRuntime(ctx context.Context, cfg config.Config) (*applicationRuntime, 
 	}
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: engine, ReadHeaderTimeout: 10 * time.Second}
 	return &applicationRuntime{server: server, worker: worker, pool: pool, cfg: cfg}, nil
+}
+
+// composeStandaloneApplication 只装配基础 RAG 接口，用于尚未配置 PostgreSQL 的本地启动阶段。
+// 账号、多知识库、文件任务和审计都需要关系数据，因此不会用临时假数据伪装成可用。
+func composeStandaloneApplication(ctx context.Context, cfg config.Config) (http.Handler, error) {
+	chatModel, err := legacyrepo.NewChatModel(ctx, cfg.LLM)
+	if err != nil {
+		return nil, err
+	}
+	embedder, err := legacyrepo.NewEmbedder(ctx, cfg.LLM)
+	if err != nil {
+		return nil, err
+	}
+	store, err := vectorstore.NewVectorStore(ctx, cfg, embedder)
+	if err != nil {
+		return nil, err
+	}
+	repository := vectorstore.NewRepository(store)
+	ingest, err := legacyrepo.NewIngestPipeline(ctx, embedder, repository)
+	if err != nil {
+		return nil, err
+	}
+	chat, err := legacyrepo.NewChatPipeline(ctx, chatModel, repository)
+	if err != nil {
+		return nil, err
+	}
+	handler := legacyhandler.New(cfg, legacyservice.NewChatService(chat),
+		legacyservice.NewIngestService(ingest), legacyservice.NewLibraryService(repository))
+	return router.New(handler), nil
 }
 
 // composeApplication 是全栈应用的装配入口：复用底层模型与向量库，
@@ -137,11 +175,13 @@ func (runtime *applicationRuntime) Run(ctx context.Context, shutdownTimeout time
 	errorsChannel := make(chan error, 2)
 	workerContext, cancelWorker := context.WithCancel(ctx)
 	defer cancelWorker()
-	go func() {
-		if err := runtime.worker.Run(workerContext, runtime.cfg.Worker.Concurrency, runtime.cfg.Worker.Poll); err != nil {
-			errorsChannel <- err
-		}
-	}()
+	if runtime.worker != nil {
+		go func() {
+			if err := runtime.worker.Run(workerContext, runtime.cfg.Worker.Concurrency, runtime.cfg.Worker.Poll); err != nil {
+				errorsChannel <- err
+			}
+		}()
+	}
 	go func() {
 		if err := runtime.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errorsChannel <- err
