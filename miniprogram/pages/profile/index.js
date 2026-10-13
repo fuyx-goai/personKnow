@@ -120,7 +120,7 @@ Page({
       success: async (result) => {
         if (!result.confirm) return
         await app.logout()
-        wx.showToast({ title: '已安全退出', icon: 'success' })
+        wx.reLaunch({ url: '/pages/login/index' })
       },
     })
   },

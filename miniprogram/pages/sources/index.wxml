@@ -18,6 +18,6 @@
       </view>
     </view>
   </view>
-  <document-editor open="{{editorOpen}}" saving="{{editorSaving}}" document="{{editingDocument}}" content="{{editingContent}}" bind:close="closeEditor" bind:submit="saveEditor" />
+  <document-editor open="{{editorOpen}}" saving="{{editorSaving}}" readonly="{{editorReadOnly}}" document="{{editingDocument}}" content="{{editingContent}}" bind:close="closeEditor" bind:submit="saveEditor" />
   <bottom-nav current="sources" />
 </view>

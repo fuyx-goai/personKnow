@@ -27,11 +27,16 @@ Page({
     online: false, loading: true, error: '', query: '', libraryIndex: 0,
     libraryOptions: [{ id: '', name: '全部知识库', access: 'owner' }],
     documents: [], visibleDocuments: [],
-    editorOpen: false, editorSaving: false, editingDocument: null, editingContent: '',
+    editorOpen: false, editorSaving: false, editorReadOnly: false,
+    editingDocument: null, editingContent: '',
     workingID: '',
   },
 
-  onLoad(options) { this.initialLibraryID = options.library || '' },
+  onLoad(options) {
+    this.initialLibraryID = options.library || ''
+    this.initialDocumentID = options.document || ''
+    this.initialViewOnly = options.view === '1'
+  },
   onShow() { this.refresh() },
 
   async refresh() {
@@ -47,7 +52,10 @@ Page({
       let libraryIndex = this.data.libraryIndex
       if (this.initialLibraryID) libraryIndex = Math.max(0, libraryOptions.findIndex((item) => item.id === this.initialLibraryID))
       this.initialLibraryID = ''
-      this.setData({ online: true, loading: false, libraryOptions, libraryIndex, documents }, () => this.applyFilters())
+      this.setData({ online: true, loading: false, libraryOptions, libraryIndex, documents }, () => {
+        this.applyFilters()
+        this.openInitialDocument()
+      })
     } catch (error) {
       this.setData({ online: false, loading: false, error: error.message })
     }
@@ -64,6 +72,20 @@ Page({
       return !query || `${item.display_name} ${item.summary} ${(item.tags || []).join(' ')}`.toLowerCase().includes(query)
     })
     this.setData({ visibleDocuments })
+  },
+
+  openInitialDocument() {
+    const documentID = this.initialDocumentID
+    if (!documentID) return
+    this.initialDocumentID = ''
+    const item = this.data.documents.find((document) => document.id === documentID)
+    if (!item) {
+      wx.showToast({ title: '引用的原资料不存在或无权查看', icon: 'none' })
+      return
+    }
+    // 从问答引用进入时只读打开，避免“查看依据”意外变成编辑操作。
+    this.openDocument(item, this.initialViewOnly || item.readOnly)
+    this.initialViewOnly = false
   },
 
   chooseUpload() {
@@ -104,18 +126,29 @@ Page({
     } catch (_) {}
   },
 
-  async openEditor(event) {
+  openEditor(event) {
     const item = this.data.documents.find((document) => document.id === event.currentTarget.dataset.id)
     if (!item || item.readOnly) return wx.showToast({ title: '公开资料仅支持查看', icon: 'none' })
+    this.openDocument(item, false)
+  },
+
+  async openDocument(item, viewOnly) {
     this.setData({ workingID: item.id })
     try {
       const result = await api.documentContent(item.id)
-      this.setData({ editorOpen: true, editingDocument: item, editingContent: result.text || '' })
+      this.setData({
+        editorOpen: true,
+        editorReadOnly: Boolean(viewOnly),
+        editingDocument: item,
+        editingContent: result.text || '',
+      })
     } catch (error) { wx.showToast({ title: error.message, icon: 'none' }) }
     finally { this.setData({ workingID: '' }) }
   },
 
-  closeEditor() { this.setData({ editorOpen: false, editingDocument: null, editingContent: '' }) },
+  closeEditor() {
+    this.setData({ editorOpen: false, editorReadOnly: false, editingDocument: null, editingContent: '' })
+  },
 
   async saveEditor(event) {
     const document = this.data.editingDocument

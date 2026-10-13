@@ -104,7 +104,23 @@ CONFIG_FILE=configs/config.local.yaml go run ./cmd/migrate up
 CONFIG_FILE=configs/config.local.yaml go run ./cmd/migrate status
 ```
 
-### 4. 启动 Web 开发模式
+### 5. 写入原型演示数据（本地开发）
+
+小程序首次登录后，如果知识库、资料、历史问答和用量页面为空，可以执行一次本地演示数据初始化。命令会选择最近登录的真实用户，写入 3 个知识库、5 份原型资料、10 篇原创 AI 开发文章和 8 篇 Go 官方 GitHub 教程，同时保留来源链接与 BSD-3-Clause 许可证。文档会写入 PostgreSQL 和 `storage.data_dir`，再由异步 worker 生成真实向量。
+
+```bash
+CONFIG_FILE=configs/config.local.yaml go run ./cmd/demo-seed
+```
+
+也可以显式指定用户：
+
+```bash
+CONFIG_FILE=configs/config.local.yaml go run ./cmd/demo-seed --user '<user-uuid>'
+```
+
+该命令使用稳定主键和 `ON CONFLICT`，重复执行不会重复创建数据或重复索引相同内容。GitHub 资料只从内置的 `golang/website` HTTPS 白名单抓取，命令不接受任意 URL。它只用于本地开发，生产环境不要执行。
+
+### 6. 启动 Web 开发模式
 
 另开终端，保留 Go 网关运行：
 
@@ -116,13 +132,15 @@ npm run dev
 
 访问 `http://127.0.0.1:5173`。Vite 会把 `/api` 请求代理到 `http://127.0.0.1:8080`。
 
-### 5. 启动微信小程序
+### 7. 启动微信小程序
 
 1. 用微信开发者工具导入 `miniprogram` 目录；
 2. 小程序完整联调需要 PostgreSQL，并在配置文件 `auth` 段填写真实 AppID/AppSecret；
 3. 开发阶段可关闭合法域名校验；
 4. 在“我的空间”把服务地址改为网关地址；
 5. 真机不能使用 `127.0.0.1`，需填写手机可访问的局域网地址或 HTTPS 域名。
+
+小程序首次进入会显示授权页，只在用户点击登录按钮后调用 `wx.login`；已有有效 refresh token 时会静默恢复会话。
 
 详细说明见 [miniprogram/README.md](miniprogram/README.md)。第一次接入微信登录，建议按 [微信小程序登录教程](docs/wechat-miniprogram-login-tutorial.md) 逐步操作。
 

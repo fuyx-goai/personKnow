@@ -1,0 +1,25 @@
+.login-page { position: relative; display: flex; min-height: 100vh; padding: 0 36rpx calc(42rpx + env(safe-area-inset-bottom)); background: linear-gradient(165deg,#e8f8f3 0%,#f5f8f7 48%,#eef2f4 100%); flex-direction: column; overflow: hidden; }
+.ambient { position: absolute; border-radius: 50%; filter: blur(8rpx); opacity: .55; }
+.ambient--one { top: -180rpx; right: -150rpx; width: 520rpx; height: 520rpx; background: radial-gradient(circle,#8bd9c7 0%,rgba(139,217,199,0) 68%); }
+.ambient--two { bottom: 50rpx; left: -260rpx; width: 600rpx; height: 600rpx; background: radial-gradient(circle,#c9d8ee 0%,rgba(201,216,238,0) 70%); }
+.login-top { position: relative; display: flex; align-items: center; padding-bottom: 38rpx; flex-direction: column; text-align: center; }
+.brand-mark { display: grid; width: 108rpx; height: 108rpx; margin-top: 70rpx; place-items: center; border: 1rpx solid rgba(255,255,255,.7); border-radius: 34rpx; color: #fff; background: linear-gradient(145deg,#39b69f,#198d7b); box-shadow: 0 24rpx 60rpx rgba(31,147,126,.24); font-size: 48rpx; }
+.brand-name { margin-top: 28rpx; color: #111c31; font-size: 40rpx; font-weight: 800; letter-spacing: 2rpx; }
+.brand-note { margin-top: 12rpx; color: #71808b; font-size: 23rpx; }
+.login-card { position: relative; padding: 38rpx 34rpx 34rpx; border: 1rpx solid rgba(255,255,255,.92); border-radius: 38rpx; background: rgba(255,255,255,.92); box-shadow: 0 30rpx 80rpx rgba(25,52,58,.12); backdrop-filter: blur(18rpx); }
+.login-title,.login-subtitle { display: block; text-align: center; }
+.login-title { color: #111c31; font-size: 33rpx; font-weight: 750; }
+.login-subtitle { max-width: 540rpx; margin: 12rpx auto 0; color: #84909b; font-size: 21rpx; line-height: 1.65; }
+.avatar-button { position: relative; display: grid; width: 116rpx; height: 116rpx; margin: 32rpx auto; padding: 0; place-items: center; border: 6rpx solid #e2f4ef; border-radius: 38rpx; color: #fff; background: linear-gradient(145deg,#3fb8a2,#178c7b); font-size: 42rpx; font-weight: 700; overflow: visible; }
+.avatar-button image { width: 100%; height: 100%; border-radius: 31rpx; }
+.avatar-badge { position: absolute; right: -10rpx; bottom: -8rpx; display: grid; width: 38rpx; height: 38rpx; place-items: center; border: 5rpx solid #fff; border-radius: 50%; color: #fff; background: #10192d; font-size: 25rpx; line-height: 1; }
+.field-label { display: block; margin-bottom: 10rpx; color: #5c6977; font-size: 22rpx; font-weight: 650; }
+.nickname-input { width: 100%; height: 80rpx; padding: 0 24rpx; border: 1rpx solid #dde6e6; border-radius: 22rpx; color: #18243a; background: #f7faf9; font-size: 25rpx; line-height: 80rpx; }
+.authorize-button { width: 100%; height: 84rpx; margin-top: 24rpx; border-radius: 24rpx; color: #fff; background: linear-gradient(135deg,#35b39c,#1c917f); box-shadow: 0 14rpx 30rpx rgba(34,158,137,.22); font-size: 27rpx; font-weight: 700; line-height: 84rpx; }
+.authorize-button[disabled] { color: #d5e8e4; background: #83bfb4; box-shadow: none; }
+.login-error { margin-top: 18rpx; padding: 16rpx 18rpx; border-radius: 18rpx; color: #c54254; background: #fff0f2; font-size: 20rpx; line-height: 1.5; }
+.privacy-note { display: block; margin-top: 22rpx; color: #99a3ac; font-size: 19rpx; line-height: 1.65; text-align: center; }
+.restoring { display: flex; height: 360rpx; align-items: center; justify-content: center; gap: 22rpx; color: #667580; flex-direction: column; font-size: 22rpx; }
+.loading-ring { width: 64rpx; height: 64rpx; border: 6rpx solid #dcece8; border-top-color: #2ba58f; border-radius: 50%; animation: spin .8s linear infinite; }
+.login-footer { position: relative; margin-top: auto; padding-top: 34rpx; color: #8b969f; font-size: 19rpx; text-align: center; }
+@keyframes spin { to { transform: rotate(360deg); } }

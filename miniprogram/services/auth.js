@@ -18,6 +18,10 @@ function createAuthSession(options = {}) {
     storage.removeStorageSync?.(REFRESH_TOKEN_KEY)
   }
 
+  function hasSession() {
+    return Boolean(accessToken || storage.getStorageSync?.(REFRESH_TOKEN_KEY))
+  }
+
   function accept(result = {}) {
     accessToken = result.access_token || ''
     currentUser = result.user || currentUser
@@ -48,11 +52,12 @@ function createAuthSession(options = {}) {
   }
 
   async function restore(profile = {}) {
-    // 优先用长期 refresh token 恢复；失效后再走微信登录，用户无需手动处理会话过期。
-    if (storage.getStorageSync?.(REFRESH_TOKEN_KEY)) {
-      try { return await refresh() } catch (_) { clear() }
+    // 静默恢复只允许刷新已授权会话；首次登录必须由用户点击授权按钮触发。
+    if (!storage.getStorageSync?.(REFRESH_TOKEN_KEY)) throw new Error('AUTH_REQUIRED')
+    try { return await refresh() } catch (_) {
+      clear()
+      throw new Error('AUTH_REQUIRED')
     }
-    return login(profile)
   }
 
   async function logout() {
@@ -67,6 +72,7 @@ function createAuthSession(options = {}) {
     accept,
     accessToken: () => accessToken,
     clear,
+    hasSession,
     login,
     logout,
     refresh,

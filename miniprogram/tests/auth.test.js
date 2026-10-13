@@ -33,6 +33,40 @@ test('登录仅持久化刷新令牌并将访问令牌保留在内存', async ()
   assert.equal(storage.values.has('accessToken'), false)
 })
 
+test('无本地会话时静默恢复要求用户授权且不触发微信登录', async () => {
+  const storage = createStorage()
+  let loginCalls = 0
+  const session = createAuthSession({
+    storage,
+    login: async () => { loginCalls += 1; return { code: 'wx-code' } },
+    exchange: async () => ({ access_token: 'access-token', refresh_token: 'refresh-token' }),
+  })
+
+  await assert.rejects(() => session.restore(), /AUTH_REQUIRED/)
+
+  assert.equal(loginCalls, 0)
+  assert.equal(session.hasSession(), false)
+})
+
+test('已有刷新令牌时静默恢复会话', async () => {
+  const storage = createStorage()
+  storage.setStorageSync('refreshToken', 'stored-refresh-token')
+  const session = createAuthSession({
+    storage,
+    refresh: async (token) => ({
+      access_token: 'restored-access-token',
+      refresh_token: `${token}-rotated`,
+      user: { id: 'u1', nickname: '林智深' },
+    }),
+  })
+
+  const result = await session.restore()
+
+  assert.equal(result.user.id, 'u1')
+  assert.equal(session.accessToken(), 'restored-access-token')
+  assert.equal(session.hasSession(), true)
+})
+
 test('刷新失败会清空本地会话', async () => {
   const storage = createStorage()
   storage.setStorageSync('refreshToken', 'expired')

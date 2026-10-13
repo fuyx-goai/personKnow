@@ -1,5 +1,15 @@
 const api = require('./services/api')
 
+const DEFAULT_LOCAL_API_URL = 'http://127.0.0.1:8080'
+const TEMPORARY_LOCAL_API_URL = 'http://127.0.0.1:18080'
+
+function resolveAPIBaseUrl(storedValue) {
+  const normalized = String(storedValue || '').trim().replace(/\/+$/, '')
+  // 18080 是本地调试时的临时端口；项目恢复到 8080 后自动迁移旧缓存，
+  // 否则 wx 存储中的地址会持续覆盖代码默认值，导致小程序一直请求旧网关。
+  return normalized === TEMPORARY_LOCAL_API_URL ? DEFAULT_LOCAL_API_URL : normalized || DEFAULT_LOCAL_API_URL
+}
+
 App({
   globalData: {
     apiBaseUrl: '',
@@ -15,13 +25,16 @@ App({
 
   onLaunch() {
     // 开发者工具可使用本机地址；真机必须改为局域网或 HTTPS 地址。
-    this.globalData.apiBaseUrl = wx.getStorageSync('apiBaseUrl') || 'http://127.0.0.1:8080'
-    this.bootstrapPromise = this.bootstrap()
+    const storedApiBaseUrl = wx.getStorageSync('apiBaseUrl')
+    this.globalData.apiBaseUrl = resolveAPIBaseUrl(storedApiBaseUrl)
+    if (this.globalData.apiBaseUrl !== storedApiBaseUrl) wx.setStorageSync('apiBaseUrl', this.globalData.apiBaseUrl)
+    // 启动时只恢复已授权会话，首次 wx.login 必须等用户点击授权按钮。
+    this.bootstrapPromise = api.auth.hasSession() ? this.restoreSession() : null
   },
 
-  async bootstrap() {
+  async restoreSession() {
     try {
-      // 先检查完整 v1 网关，再调用微信登录；旧二进制会在这里给出可操作的版本提示。
+      // 先检查完整 v1 网关，再使用本地 refresh token 恢复会话。
       await api.requireMiniProgram()
       const account = await api.auth.restore({ device_label: '微信小程序' })
       this.globalData.user = account.user || api.auth.user()
@@ -38,10 +51,25 @@ App({
   },
 
   async ensureReady() {
-    // 页面共用同一个启动 Promise，避免四个 tab 首次显示时重复登录和重复拉取核心数据。
+    // 未授权时统一回到登录页，业务页不得隐式触发 wx.login。
     if (this.globalData.authReady) return this.globalData
-    if (!this.bootstrapPromise) this.bootstrapPromise = this.bootstrap()
+    if (!api.auth.hasSession()) {
+      wx.reLaunch({ url: '/pages/login/index' })
+      throw new Error('AUTH_REQUIRED')
+    }
+    if (!this.bootstrapPromise) this.bootstrapPromise = this.restoreSession()
     return this.bootstrapPromise
+  },
+
+  async authorize(profile = {}) {
+    // 用户主动点击授权后才请求微信 code，并交由 Go 网关换取自有会话。
+    await api.requireMiniProgram()
+    const account = await api.auth.login({ ...profile, device_label: '微信小程序' })
+    this.globalData.user = account.user || api.auth.user()
+    this.globalData.authReady = true
+    this.bootstrapPromise = Promise.resolve(this.globalData)
+    await this.refreshCore()
+    return this.globalData
   },
 
   async refreshCore() {

@@ -1,0 +1,32 @@
+<view class="login-page">
+  <view class="ambient ambient--one"></view><view class="ambient ambient--two"></view>
+  <view class="login-top" style="padding-top: {{statusBarHeight || 54}}px">
+    <view class="brand-mark">⌘</view>
+    <text class="brand-name">智深专属知识库</text>
+    <text class="brand-note">让每份资料都可检索、可追溯、可复用</text>
+  </view>
+
+  <view class="login-card">
+    <view wx:if="{{restoring}}" class="restoring">
+      <view class="loading-ring"></view>
+      <text>正在恢复已授权会话…</text>
+    </view>
+    <block wx:else>
+      <text class="login-title">微信授权登录</text>
+      <text class="login-subtitle">登录后即可访问你的私有知识库与问答记录</text>
+      <button class="avatar-button" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill" />
+        <text wx:else>{{avatarLetter}}</text>
+        <view class="avatar-badge">+</view>
+      </button>
+      <text class="field-label">昵称（可选）</text>
+      <input class="nickname-input" type="nickname" value="{{nickname}}" maxlength="32" placeholder="点击输入微信昵称" bindinput="onNickname" />
+      <button class="authorize-button" loading="{{authorizing}}" disabled="{{authorizing}}" bindtap="authorize">
+        {{authorizing ? '正在安全登录…' : '微信授权登录'}}
+      </button>
+      <view wx:if="{{error}}" class="login-error">{{error}}</view>
+      <text class="privacy-note">登录仅用于识别账号和隔离私有资料，不会获取聊天记录或通讯录。</text>
+    </block>
+  </view>
+  <text class="login-footer">安全会话 · 私有数据隔离 · 来源可追溯</text>
+</view>

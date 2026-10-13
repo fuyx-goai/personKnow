@@ -2,6 +2,7 @@ Component({
   properties: {
     open: { type: Boolean, value: false },
     saving: { type: Boolean, value: false },
+    readonly: { type: Boolean, value: false },
     document: {
       type: Object,
       value: null,
@@ -22,7 +23,7 @@ Component({
     close() { if (!this.data.saving) this.triggerEvent('close') },
     stopTap() {},
     submit() {
-      if (!this.data.displayName.trim() || !this.data.text.trim() || this.data.saving) return
+      if (this.data.readonly || !this.data.displayName.trim() || !this.data.text.trim() || this.data.saving) return
       const tags = this.data.tags.split(/[，,]/).map((item) => item.trim()).filter(Boolean)
       this.triggerEvent('submit', { displayName: this.data.displayName.trim(), tags, text: this.data.text })
     },

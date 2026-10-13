@@ -1,21 +1,12 @@
 const api = require('../../services/api')
-const { formatScore } = require('../../utils/format')
+const { mapReference, orderMessages } = require('../../utils/chat-display')
 
 const app = getApp()
-
-function displayReference(reference) {
-  return {
-    ...reference,
-    source: reference.source_name || reference.source || '原资料',
-    snippet: reference.excerpt || reference.snippet || '',
-    scoreLabel: formatScore(reference.similarity ?? reference.score),
-  }
-}
 
 function displayMessage(message) {
   return {
     ...message,
-    references: (message.references || []).map(displayReference),
+    references: (message.references || []).map(mapReference),
     usageLabel: message.total_tokens ? `${Number(message.total_tokens).toLocaleString('zh-CN')} Tokens` : '',
   }
 }
@@ -80,7 +71,7 @@ Page({
     this.setData({ loading: true, historyOpen: false })
     try {
       const result = await api.chatHistory(id)
-      const messages = (result.messages || []).map(displayMessage)
+      const messages = orderMessages(result.messages || []).map(displayMessage)
       const libraryIndex = result.session.library_id
         ? Math.max(0, this.data.libraries.findIndex((item) => item.id === result.session.library_id)) : 0
       this.setData({ currentSessionID: id, messages, libraryIndex, loading: false, scrollTarget: `message-${messages.length - 1}` })
@@ -120,8 +111,15 @@ Page({
   },
 
   appendReference(index, reference) {
-    const references = (this.data.messages[index]?.references || []).concat(displayReference(reference))
+    const references = (this.data.messages[index]?.references || []).concat(mapReference(reference))
     this.setData({ [`messages[${index}].references`]: references })
+  },
+
+  openReference(event) {
+    const documentID = event.currentTarget.dataset.documentId
+    if (!documentID) return wx.showToast({ title: '该引用缺少原资料标识', icon: 'none' })
+    // 保留当前问答页的浏览位置，用户查看原资料后可直接返回继续阅读。
+    wx.navigateTo({ url: `/pages/sources/index?document=${encodeURIComponent(documentID)}&view=1` })
   },
 
   finishAnswer(index, error = '') {

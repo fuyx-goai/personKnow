@@ -14,7 +14,7 @@
       <view class="message__body">
         <text class="message__text" selectable>{{item.content || (item.streaming ? '正在检索知识库…' : '')}}</text>
         <view wx:if="{{item.streaming}}" class="typing"><view></view><view></view><view></view></view>
-        <view wx:if="{{item.references.length}}" class="references"><text class="references__title">原资料溯源依据（{{item.references.length}} 处匹配）</text><view wx:for="{{item.references}}" wx:key="chunk_id" wx:for-item="reference" class="reference"><view><text>{{reference.source}}</text><text class="reference__score">{{reference.scoreLabel}} 相似</text></view><text class="reference__snippet">{{reference.snippet}}</text><text wx:if="{{reference.location_label}}" class="reference__location">{{reference.location_label}}</text></view></view>
+        <view wx:if="{{item.references.length}}" class="references"><text class="references__title">原资料溯源依据（{{item.references.length}} 处匹配）</text><button wx:for="{{item.references}}" wx:key="chunk_id" wx:for-item="reference" class="reference" data-document-id="{{reference.documentID}}" bindtap="openReference"><view><text>{{reference.source}}</text><view><text class="reference__score">{{reference.scoreLabel}} 相似</text><text class="reference__arrow">›</text></view></view><text class="reference__snippet">{{reference.snippet}}</text><text wx:if="{{reference.location_label}}" class="reference__location">{{reference.location_label}}</text></button></view>
         <view wx:if="{{item.role === 'assistant' && (item.usageLabel || item.content)}}" class="model-meta"><text>{{config.chatModel || 'DeepSeek-V3'}}</text><text wx:if="{{item.usageLabel}}">{{item.usageLabel}}</text></view>
       </view>
     </view>
