@@ -61,7 +61,10 @@ func (repository *PostgresRepository) references(ctx context.Context, messageID 
 		}
 		references = append(references, reference)
 	}
-	return references, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return DeduplicateReferences(references), nil
 }
 
 func (repository *PostgresRepository) DeleteSession(ctx context.Context, userID, sessionID uuid.UUID, now time.Time) error {

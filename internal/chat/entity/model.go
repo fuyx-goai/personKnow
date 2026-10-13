@@ -74,6 +74,27 @@ type Reference struct {
 	Rank             int       `json:"rank"`
 }
 
+// DeduplicateReferences 将同一份资料的多个命中片段合并成一张引用卡片。
+// 问答上下文仍保留全部片段，但用户看到的资料列表只需要最高相似度的代表片段。
+func DeduplicateReferences(references []Reference) []Reference {
+	unique := make([]Reference, 0, len(references))
+	positions := make(map[uuid.UUID]int, len(references))
+	for _, reference := range references {
+		position, exists := positions[reference.DocumentID]
+		if !exists {
+			reference.Rank = len(unique) + 1
+			positions[reference.DocumentID] = len(unique)
+			unique = append(unique, reference)
+			continue
+		}
+		if reference.Similarity > unique[position].Similarity {
+			reference.Rank = unique[position].Rank
+			unique[position] = reference
+		}
+	}
+	return unique
+}
+
 type RetrievalSettings struct {
 	TopK                int
 	SimilarityThreshold float64

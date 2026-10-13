@@ -32,20 +32,20 @@ func (engine *VectorEngine) Stream(ctx context.Context, question string, scope p
 	if err != nil {
 		return EngineResult{}, err
 	}
-	references := make([]Reference, len(hits))
+	references := make([]Reference, 0, len(hits))
 	var background strings.Builder
 	for index, hit := range hits {
 		background.WriteString(fmt.Sprintf("资料%d（%s，%s）:\n%s\n\n", index+1, hit.SourceName, hit.LocationLabel, hit.Content))
-		references[index] = Reference{
+		references = append(references, Reference{
 			DocumentID: hit.DocumentID, ContentVersionID: hit.ContentVersionID, ChunkID: hit.ID,
 			SourceName: hit.SourceName, LocationLabel: hit.LocationLabel, Excerpt: excerpt(hit.Content, 500),
 			Similarity: hit.Similarity, Rank: index + 1,
-		}
+		})
 	}
 	prompt := "请仅依据背景资料回答；资料不足时明确说明不知道，禁止编造。\n\n【背景资料】\n" +
 		background.String() + "\n【问题】\n" + question
 	breakdown, err := engine.generator.Stream(ctx, prompt, onDelta)
-	return EngineResult{References: references, Usage: breakdown}, err
+	return EngineResult{References: DeduplicateReferences(references), Usage: breakdown}, err
 }
 
 func excerpt(content string, limit int) string {
